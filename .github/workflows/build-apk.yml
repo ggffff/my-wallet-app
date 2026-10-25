@@ -103,8 +103,18 @@ jobs:
 
       - name: Build the debug APK
         env:
-          GRADLE_OPTS: "-Xmx3584m -XX:MaxMetaspaceSize=768m -Dorg.gradle.workers.max=2 -Dfile.encoding=UTF-8"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx2560m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC' -Dorg.gradle.workers.max=2 -Dfile.encoding=UTF-8"
         run: |
+          echo "=== Configuring Runner Memory ==="
+          # Configure 4GB swap space on the runner to prevent out-of-memory crashes during Kotlin compilation
+          sudo fallocate -l 4G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 2>/dev/null || true
+          if [ -f /swapfile ]; then
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile >/dev/null 2>&1 || true
+            sudo swapon /swapfile >/dev/null 2>&1 || true
+          fi
+          free -h
+
           echo "=== Building Debug APK ==="
           gradle :app:assembleDebug --stacktrace --no-daemon
 
