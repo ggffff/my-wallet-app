@@ -277,6 +277,19 @@ private fun FeatureRow(
     }
 }
 
+private fun getWebClientId(context: Context): String? {
+    val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+        .takeIf { it != 0 }
+        ?: context.resources.getIdentifier("default_web_client_id", "string", "com.example")
+            .takeIf { it != 0 }
+
+    return if (resId != null && resId != 0) {
+        context.getString(resId)
+    } else {
+        null
+    }
+}
+
 private fun signInWithGoogle(
     context: Context,
     credentialManager: CredentialManager,
@@ -285,10 +298,9 @@ private fun signInWithGoogle(
     onError: (String) -> Unit,
     onCancelled: () -> Unit
 ) {
-    val clientId = try {
-        context.getString(R.string.default_web_client_id)
-    } catch (e: Exception) {
-        onError("Google Sign-In configuration missing: default_web_client_id not found")
+    val clientId = getWebClientId(context)
+    if (clientId.isNullOrBlank()) {
+        onError("Google Sign-In configuration missing: default_web_client_id not found in google-services resources")
         return
     }
 
