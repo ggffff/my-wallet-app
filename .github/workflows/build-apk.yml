@@ -91,13 +91,15 @@ jobs:
 
           echo "Temporary debug keystore verified."
 
-          # Ensure Android SDK licenses are accepted and Platform 36 is available
+          # Ensure Android SDK licenses are accepted and Platform 36 & 36.1 are installed
           if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
             echo "Accepting Android SDK licenses..."
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
-            if [ ! -d "$ANDROID_HOME/platforms/android-36" ]; then
-              echo "Installing Android SDK Platform 36..."
-              "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" || true
+            echo "Installing required Android SDK platforms (36, 36.1) and build-tools (36.0.0)..."
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "platforms;android-36.1" "build-tools;36.0.0" || true
+            if [ -d "$ANDROID_HOME/platforms/android-36" ] && [ ! -d "$ANDROID_HOME/platforms/android-36.1" ]; then
+              echo "Creating fallback for android-36.1..."
+              cp -r "$ANDROID_HOME/platforms/android-36" "$ANDROID_HOME/platforms/android-36.1" || true
             fi
           fi
 
