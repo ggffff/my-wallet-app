@@ -1,0 +1,6 @@
+{
+  "name": "My Wallet",
+  "description": "Smart personal wallet app to track income, spending, BDT accounts, savings goals, bills, and AI financial assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

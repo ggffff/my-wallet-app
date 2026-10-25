@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile settings including display name, avatar, preferred language, theme and currency",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string", "description": "User's full name" },
+        "email": { "type": "string", "description": "User email address" },
+        "photoUrl": { "type": "string", "description": "URL or avatar identifier for profile picture" },
+        "currency": { "type": "string", "description": "Currency code such as BDT" },
+        "language": { "type": "string", "description": "App language (en or bn)" },
+        "themeMode": { "type": "string", "description": "Theme mode: light, dark, or system" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["displayName", "currency", "language", "themeMode"]
+    },
+    "Account": {
+      "title": "Account",
+      "description": "Financial account or mobile wallet (e.g. Bank, Cash, bKash, Nagad, Rocket, or custom bank)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Account name (e.g. BRAC Bank, My bKash)" },
+        "type": { "type": "string", "description": "Type: BANK, CASH, BKASH, NAGAD, ROCKET, OTHER" },
+        "accountNumber": { "type": "string", "description": "Masked or full account/phone number" },
+        "balance": { "type": "number", "description": "Current balance in BDT" },
+        "colorHex": { "type": "string", "description": "Color theme hex for the account card" },
+        "iconName": { "type": "string", "description": "Icon identifier for the account type" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["name", "type", "balance"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Income or Spent transaction entry",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title or short description of transaction" },
+        "amount": { "type": "number", "description": "Transaction amount in BDT" },
+        "type": { "type": "string", "description": "Transaction type: INCOME or SPENT" },
+        "category": { "type": "string", "description": "Category (Salary, Pathao Drive, Tips, Business, Food, Family, Rental cost, Others)" },
+        "accountId": { "type": "string", "description": "Source or destination account ID" },
+        "accountName": { "type": "string", "description": "Name of the account at time of transaction" },
+        "date": { "type": "string", "description": "Formatted date of transaction (YYYY-MM-DD)" },
+        "note": { "type": "string", "description": "Additional notes" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["title", "amount", "type", "category", "accountId", "accountName", "date"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "Savings goal for any purchase or milestone",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Goal title (e.g. New Laptop, Bike, Eid Shopping)" },
+        "targetAmount": { "type": "number", "description": "Target purchase amount in BDT" },
+        "savedAmount": { "type": "number", "description": "Currently saved amount in BDT" },
+        "targetDate": { "type": "string", "description": "Target completion date (YYYY-MM-DD)" },
+        "icon": { "type": "string", "description": "Icon key representing the goal" },
+        "note": { "type": "string", "description": "Goal notes or motivation" },
+        "isCompleted": { "type": "boolean", "description": "Whether goal is completed" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["title", "targetAmount", "savedAmount"]
+    },
+    "Bill": {
+      "title": "Bill",
+      "description": "Upcoming or recurring bill with notification reminder and amount",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Bill name (e.g. Electricity, Internet, House Rent)" },
+        "amount": { "type": "number", "description": "Bill amount in BDT" },
+        "dueDate": { "type": "string", "description": "Due date (YYYY-MM-DD)" },
+        "category": { "type": "string", "description": "Bill category (Utilities, Rent, Subscription, Tuition, Other)" },
+        "isPaid": { "type": "boolean", "description": "Whether the bill has been paid" },
+        "notifyEnabled": { "type": "boolean", "description": "Whether notification alert is enabled" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["title", "amount", "dueDate", "isPaid", "notifyEnabled"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile settings document"
+    },
+    "/users/{userId}/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "Financial accounts belonging to the user"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Income and spent transaction statements"
+    },
+    "/users/{userId}/goals/{goalId}": {
+      "schema": "Goal",
+      "description": "Savings goals for purchases"
+    },
+    "/users/{userId}/bills/{billId}": {
+      "schema": "Bill",
+      "description": "Bill payment reminders with due dates and notifications"
+    }
+  }
+}
