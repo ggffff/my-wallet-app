@@ -126,7 +126,7 @@ jobs:
           free -h
 
           echo "=== Building Debug APK ==="
-          gradle :app:assembleDebug --stacktrace --no-daemon
+          gradle :app:assembleDebug --stacktrace
 
       - name: Verify the APK
         run: |
