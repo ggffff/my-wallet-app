@@ -91,7 +91,19 @@ jobs:
 
           echo "Temporary debug keystore verified."
 
+          # Ensure Android SDK licenses are accepted and Platform 36 is available
+          if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            echo "Accepting Android SDK licenses..."
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+            if [ ! -d "$ANDROID_HOME/platforms/android-36" ]; then
+              echo "Installing Android SDK Platform 36..."
+              "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" || true
+            fi
+          fi
+
       - name: Build the debug APK
+        env:
+          GRADLE_OPTS: "-Xmx3584m -XX:MaxMetaspaceSize=768m -Dorg.gradle.workers.max=2 -Dfile.encoding=UTF-8"
         run: |
           echo "=== Building Debug APK ==="
           gradle :app:assembleDebug --stacktrace --no-daemon
@@ -231,6 +243,7 @@ jobs:
             echo "- **Direct Download**: Available under the Release Assets section at $RELEASE_URL" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::warning::GitHub Release creation did not complete successfully (outcome: $RELEASE_OUTCOME). The debug APK is preserved as Actions artifact 'app-debug-apk'."
-            echo "- **Release Status**: :warning: Release creation failed ($RELEASE_OUTCOME)." >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Artifact Fallback**: The debug APK was successfully built and uploaded as the \`app-debug-apk\` Actions artifact. Download it from the Summary tab of this workflow run." >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Release Status**: :warning: Release creation did not complete ($RELEASE_OUTCOME)." >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Artifact Download**: The debug APK is ready and uploaded as the \`app-debug-apk\` artifact. Download it directly from the Summary tab of this workflow run." >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Release Permissions Tip**: If release failed with HTTP 403, enable write access in GitHub: Repository Settings > Actions > General > Workflow permissions > 'Read and write permissions'." >> "$GITHUB_STEP_SUMMARY"
           fi
