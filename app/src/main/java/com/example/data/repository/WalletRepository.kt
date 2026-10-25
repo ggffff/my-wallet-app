@@ -20,10 +20,25 @@ import kotlinx.coroutines.tasks.await
 class WalletRepository(private val db: FirebaseFirestore) {
 
     constructor(context: Context) : this(
-        FirebaseFirestore.getInstance(
-            context.applicationContext.getString(R.string.firestore_database_id)
-        )
+        resolveFirestore(context)
     )
+
+    companion object {
+        private fun resolveFirestore(context: Context): FirebaseFirestore {
+            return try {
+                val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
+                val dbName = if (resId != 0) context.getString(resId) else null
+                if (!dbName.isNullOrBlank()) {
+                    FirebaseFirestore.getInstance(dbName)
+                } else {
+                    FirebaseFirestore.getInstance()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("WalletRepository", "Failed to get named Firestore instance; falling back to default", e)
+                FirebaseFirestore.getInstance()
+            }
+        }
+    }
 
     private val auth = Firebase.auth
 

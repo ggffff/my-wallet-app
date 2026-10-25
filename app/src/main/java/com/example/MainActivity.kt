@@ -101,8 +101,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // STEP 1: Mandatory App Check intent wiring
-        configureAppCheck(this, intent)
+        // Install logging for any uncaught exceptions to help diagnostics
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e("MyWallet", "Uncaught exception on thread ${thread.name}", throwable)
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
+        // STEP 1: Mandatory App Check intent wiring (safely executed)
+        try {
+            configureAppCheck(this, intent)
+        } catch (e: Throwable) {
+            Log.e("MainActivity", "Error during configureAppCheck", e)
+        }
 
         enableEdgeToEdge()
 
@@ -114,22 +125,39 @@ class MainActivity : ComponentActivity() {
             MyWalletTheme(darkTheme = isDarkTheme) {
                 CompositionLocalProvider(LocalAppLanguage provides appLanguage) {
                     var showSplash by remember { mutableStateOf(true) }
-                    var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
 
-                    DisposableEffect(Unit) {
-                        val authListener = FirebaseAuth.AuthStateListener { auth ->
-                            currentUser = auth.currentUser
+                    // Safely obtain Firebase Auth instance
+                    val auth = remember {
+                        try {
+                            Firebase.auth
+                        } catch (e: Throwable) {
+                            Log.e("MainActivity", "Firebase Auth initialization error", e)
+                            null
                         }
-                        Firebase.auth.addAuthStateListener(authListener)
-                        onDispose {
-                            Firebase.auth.removeAuthStateListener(authListener)
+                    }
+
+                    var currentUser by remember { mutableStateOf(auth?.currentUser) }
+
+                    DisposableEffect(auth) {
+                        if (auth != null) {
+                            val authListener = FirebaseAuth.AuthStateListener { fbAuth ->
+                                currentUser = fbAuth.currentUser
+                            }
+                            auth.addAuthStateListener(authListener)
+                            onDispose {
+                                auth.removeAuthStateListener(authListener)
+                            }
+                        } else {
+                            onDispose { }
                         }
                     }
 
                     if (showSplash) {
                         SplashScreen(onSplashFinished = { showSplash = false })
                     } else if (currentUser == null) {
-                        AuthScreen(onAuthSuccess = { currentUser = Firebase.auth.currentUser })
+                        AuthScreen(onAuthSuccess = {
+                            currentUser = auth?.currentUser
+                        })
                     } else {
                         MainWalletApp(
                             currentUserId = currentUser!!.uid,
