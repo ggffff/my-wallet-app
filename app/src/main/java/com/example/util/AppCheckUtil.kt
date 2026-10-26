@@ -39,10 +39,14 @@ fun configureAppCheck(context: Context, intent: Intent?) {
                 Log.d(TAG, "No debug token found in Intent extra; using default debug provider.")
             }
 
-            FirebaseAppCheck.getInstance(app).installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance()
-            )
-            Log.d(TAG, "DebugAppCheckProviderFactory installed.")
+            try {
+                FirebaseAppCheck.getInstance(app).installAppCheckProviderFactory(
+                    DebugAppCheckProviderFactory.getInstance()
+                )
+                Log.d(TAG, "DebugAppCheckProviderFactory installed.")
+            } catch (t: Throwable) {
+                Log.w(TAG, "DebugAppCheckProviderFactory could not be installed", t)
+            }
         } else {
             val resId = context.resources.getIdentifier(RECAPTCHA_SITE_KEY_RES, "string", context.packageName)
             if (resId != 0) {

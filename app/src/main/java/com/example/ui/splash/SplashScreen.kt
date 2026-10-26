@@ -48,16 +48,21 @@ fun SplashScreen(
     }
 
     LaunchedEffect(Unit) {
-        scale.animateTo(
-            targetValue = 1.05f,
-            animationSpec = tween(700, easing = FastOutSlowInEasing)
-        )
-        scale.animateTo(
-            targetValue = 1.0f,
-            animationSpec = tween(300, easing = FastOutSlowInEasing)
-        )
-        delay(600)
-        onSplashFinished()
+        try {
+            scale.animateTo(
+                targetValue = 1.05f,
+                animationSpec = tween(700, easing = FastOutSlowInEasing)
+            )
+            scale.animateTo(
+                targetValue = 1.0f,
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            )
+            delay(500)
+        } catch (t: Throwable) {
+            android.util.Log.w("SplashScreen", "Animation interrupted", t)
+        } finally {
+            onSplashFinished()
+        }
     }
 
     Box(

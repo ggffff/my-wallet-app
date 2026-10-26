@@ -73,7 +73,6 @@ fun AuthScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val credentialManager = remember { CredentialManager.create(context) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -188,7 +187,6 @@ fun AuthScreen(
                         errorMessage = null
                         signInWithGoogle(
                             context = context,
-                            credentialManager = credentialManager,
                             scope = coroutineScope,
                             onSuccess = {
                                 isLoading = false
@@ -292,7 +290,6 @@ private fun getWebClientId(context: Context): String? {
 
 private fun signInWithGoogle(
     context: Context,
-    credentialManager: CredentialManager,
     scope: CoroutineScope,
     onSuccess: () -> Unit,
     onError: (String) -> Unit,
@@ -304,8 +301,29 @@ private fun signInWithGoogle(
         return
     }
 
-    val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
-    val request = GetCredentialRequest.Builder().addCredentialOption(signInOption).build()
+    val credentialManager = try {
+        CredentialManager.create(context)
+    } catch (t: Throwable) {
+        Log.e("Auth", "Failed to initialize CredentialManager", t)
+        onError("Google Sign-In service not available on this device: ${t.localizedMessage ?: t.javaClass.simpleName}")
+        return
+    }
+
+    val signInOption = try {
+        GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
+    } catch (t: Throwable) {
+        Log.e("Auth", "Failed to create GetSignInWithGoogleOption", t)
+        onError("Failed to initialize Google Sign-In options: ${t.localizedMessage}")
+        return
+    }
+
+    val request = try {
+        GetCredentialRequest.Builder().addCredentialOption(signInOption).build()
+    } catch (t: Throwable) {
+        Log.e("Auth", "Failed to create GetCredentialRequest", t)
+        onError("Failed to create credential request: ${t.localizedMessage}")
+        return
+    }
 
     scope.launch {
         try {
@@ -322,9 +340,9 @@ private fun signInWithGoogle(
         } catch (e: GetCredentialCancellationException) {
             Log.w("Auth", "Google Sign-In flow cancelled: ${e.message}", e)
             onCancelled()
-        } catch (e: Exception) {
-            Log.e("Auth", "Google Sign-In failed", e)
-            onError(e.localizedMessage ?: "Sign in failed")
+        } catch (t: Throwable) {
+            Log.e("Auth", "Google Sign-In failed", t)
+            onError(t.localizedMessage ?: "Sign in failed")
         }
     }
 }

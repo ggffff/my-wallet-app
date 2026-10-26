@@ -34,8 +34,8 @@ class MyWalletApplication : Application() {
             } else {
                 Log.d(TAG, "FirebaseApp already initialized by FirebaseInitProvider")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Firebase initialization encountered an exception", e)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Firebase initialization encountered an exception", t)
         }
     }
 

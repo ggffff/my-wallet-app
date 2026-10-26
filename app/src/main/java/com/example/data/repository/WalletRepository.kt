@@ -49,12 +49,16 @@ class WalletRepository(private val db: FirebaseFirestore) {
 
     // --- User Profile ---
     fun observeUserProfile(): Flow<UserProfile?> = callbackFlow {
-        val uid = try { requireUserId() } catch (e: Exception) { close(e); return@callbackFlow }
+        val uid = try { requireUserId() } catch (t: Throwable) { 
+            trySend(null)
+            close()
+            return@callbackFlow 
+        }
         val docRef = db.collection("users").document(uid)
         val registration = docRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 handleFirestoreError(error, OperationType.GET, docRef.path)
-                close(error)
+                trySend(null)
                 return@addSnapshotListener
             }
             val profile = snapshot?.toObject(UserProfile::class.java)
@@ -85,12 +89,16 @@ class WalletRepository(private val db: FirebaseFirestore) {
 
     // --- Accounts ---
     fun observeAccounts(): Flow<List<Account>> = callbackFlow {
-        val uid = try { requireUserId() } catch (e: Exception) { close(e); return@callbackFlow }
+        val uid = try { requireUserId() } catch (t: Throwable) { 
+            trySend(emptyList())
+            close()
+            return@callbackFlow 
+        }
         val colRef = db.collection("users").document(uid).collection("accounts")
         val registration = colRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 handleFirestoreError(error, OperationType.LIST, colRef.path)
-                close(error)
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             val accounts = snapshot?.documents?.mapNotNull { it.toObject(Account::class.java) } ?: emptyList()
@@ -154,12 +162,16 @@ class WalletRepository(private val db: FirebaseFirestore) {
 
     // --- Transactions ---
     fun observeTransactions(): Flow<List<Transaction>> = callbackFlow {
-        val uid = try { requireUserId() } catch (e: Exception) { close(e); return@callbackFlow }
+        val uid = try { requireUserId() } catch (t: Throwable) { 
+            trySend(emptyList())
+            close()
+            return@callbackFlow 
+        }
         val colRef = db.collection("users").document(uid).collection("transactions")
         val registration = colRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 handleFirestoreError(error, OperationType.LIST, colRef.path)
-                close(error)
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             val list = snapshot?.documents?.mapNotNull { it.toObject(Transaction::class.java) } ?: emptyList()
@@ -240,12 +252,16 @@ class WalletRepository(private val db: FirebaseFirestore) {
 
     // --- Goals ---
     fun observeGoals(): Flow<List<Goal>> = callbackFlow {
-        val uid = try { requireUserId() } catch (e: Exception) { close(e); return@callbackFlow }
+        val uid = try { requireUserId() } catch (t: Throwable) { 
+            trySend(emptyList())
+            close()
+            return@callbackFlow 
+        }
         val colRef = db.collection("users").document(uid).collection("goals")
         val registration = colRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 handleFirestoreError(error, OperationType.LIST, colRef.path)
-                close(error)
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             val list = snapshot?.documents?.mapNotNull { it.toObject(Goal::class.java) } ?: emptyList()
@@ -322,12 +338,16 @@ class WalletRepository(private val db: FirebaseFirestore) {
 
     // --- Bills ---
     fun observeBills(): Flow<List<Bill>> = callbackFlow {
-        val uid = try { requireUserId() } catch (e: Exception) { close(e); return@callbackFlow }
+        val uid = try { requireUserId() } catch (t: Throwable) { 
+            trySend(emptyList())
+            close()
+            return@callbackFlow 
+        }
         val colRef = db.collection("users").document(uid).collection("bills")
         val registration = colRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 handleFirestoreError(error, OperationType.LIST, colRef.path)
-                close(error)
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             val list = snapshot?.documents?.mapNotNull { it.toObject(Bill::class.java) } ?: emptyList()

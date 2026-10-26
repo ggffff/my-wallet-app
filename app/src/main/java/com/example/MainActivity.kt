@@ -115,7 +115,12 @@ class MainActivity : ComponentActivity() {
             Log.e("MainActivity", "Error during configureAppCheck", e)
         }
 
-        enableEdgeToEdge()
+        // Safe EdgeToEdge invocation compatible with HyperOS / Android 15
+        try {
+            enableEdgeToEdge()
+        } catch (t: Throwable) {
+            Log.w("MainActivity", "enableEdgeToEdge encountered an error", t)
+        }
 
         setContent {
             val systemDark = isSystemInDarkTheme()
@@ -192,11 +197,11 @@ fun MainWalletApp(
     val coroutineScope = rememberCoroutineScope()
     val repository = remember(currentUserId) { WalletRepository(context) }
 
-    val userProfile by repository.observeUserProfile().collectAsStateWithLifecycle(initialValue = null)
-    val accounts by repository.observeAccounts().collectAsStateWithLifecycle(initialValue = emptyList())
-    val transactions by repository.observeTransactions().collectAsStateWithLifecycle(initialValue = emptyList())
-    val goals by repository.observeGoals().collectAsStateWithLifecycle(initialValue = emptyList())
-    val bills by repository.observeBills().collectAsStateWithLifecycle(initialValue = emptyList())
+    val userProfile by remember(repository) { repository.observeUserProfile() }.collectAsStateWithLifecycle(initialValue = null)
+    val accounts by remember(repository) { repository.observeAccounts() }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val transactions by remember(repository) { repository.observeTransactions() }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val goals by remember(repository) { repository.observeGoals() }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val bills by remember(repository) { repository.observeBills() }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
 
@@ -454,11 +459,20 @@ fun MainWalletApp(
 }
 
 private fun signOut(context: Context, onComplete: () -> Unit) {
-    val credentialManager = CredentialManager.create(context)
-    Firebase.auth.signOut()
+    val credentialManager = try {
+        CredentialManager.create(context)
+    } catch (t: Throwable) {
+        Log.e("Auth", "Failed to get CredentialManager for sign out", t)
+        null
+    }
+    try {
+        Firebase.auth.signOut()
+    } catch (t: Throwable) {
+        Log.e("Auth", "Failed to sign out from Firebase", t)
+    }
     CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
         try {
-            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+            credentialManager?.clearCredentialState(ClearCredentialStateRequest())
         } catch (e: Exception) {
             Log.e("Auth", "Failed to clear credential state", e)
         } finally {
