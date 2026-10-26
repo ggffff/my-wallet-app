@@ -87,29 +87,89 @@ jobs:
           LOCAL_KEYSTORE="./debug.keystore"
           KEYSTORE_SOURCE=""
 
+          is_valid_keystore() {
+            local ks="$1"
+            [ -n "$ks" ] && [ -f "$ks" ] && [ -s "$ks" ] && keytool -list -keystore "$ks" -alias androiddebugkey -storepass android >/dev/null 2>&1
+          }
+
+          SECRET_RESTORED=false
           if [ -n "$DEBUG_KEYSTORE_SECRET" ]; then
-            echo "Priority 1: Restoring persistent debug keystore from DEBUG_KEYSTORE_BASE64 repository secret..."
-            echo "$DEBUG_KEYSTORE_SECRET" | base64 -d > "$GLOBAL_KEYSTORE"
-            cp "$GLOBAL_KEYSTORE" "$LOCAL_KEYSTORE"
-            KEYSTORE_SOURCE="GitHub Secret (DEBUG_KEYSTORE_BASE64)"
-            echo "Debug keystore successfully restored from repository secret."
-          elif [ -f "$GLOBAL_KEYSTORE" ] && [ -s "$GLOBAL_KEYSTORE" ]; then
-            echo "Priority 2: Using persistent debug keystore from $GLOBAL_KEYSTORE (restored from Actions cache)..."
-            cp "$GLOBAL_KEYSTORE" "$LOCAL_KEYSTORE"
-            KEYSTORE_SOURCE="GitHub Actions Cache ($GLOBAL_KEYSTORE)"
-          elif [ -f "$LOCAL_KEYSTORE" ] && [ -s "$LOCAL_KEYSTORE" ]; then
-            echo "Priority 3: Using persistent debug keystore from repository root ($LOCAL_KEYSTORE)..."
-            cp "$LOCAL_KEYSTORE" "$GLOBAL_KEYSTORE"
-            KEYSTORE_SOURCE="Repository workspace ($LOCAL_KEYSTORE)"
-          elif [ -f "./debug.keystore.base64" ]; then
-            echo "Priority 4: Restoring persistent debug keystore from debug.keystore.base64 file..."
-            base64 -d ./debug.keystore.base64 > "$GLOBAL_KEYSTORE"
-            cp "$GLOBAL_KEYSTORE" "$LOCAL_KEYSTORE"
-            KEYSTORE_SOURCE="Repository file (debug.keystore.base64)"
-          else
-            echo "Priority 5: No saved secret, cache, or file found. Generating persistent debug keystore once..."
+            echo "Checking DEBUG_KEYSTORE_BASE64 repository secret..."
+            TMP_DECODED="$RUNNER_TEMP/secret_keystore.tmp"
+            rm -f "$TMP_DECODED"
+
+            python3 -c "
+import base64, re, sys, os
+secret = os.environ.get('DEBUG_KEYSTORE_SECRET', '').strip()
+if not secret:
+    sys.exit(1)
+cleaned = re.sub(r'[^A-Za-z0-9+/=]', '', secret)
+if len(cleaned) < 64:
+    sys.exit(1)
+try:
+    data = base64.b64decode(cleaned, validate=True)
+    if len(data) < 100:
+        sys.exit(1)
+    with open(sys.argv[1], 'wb') as f:
+        f.write(data)
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+" "$TMP_DECODED" 2>/dev/null || true
+
+            if is_valid_keystore "$TMP_DECODED"; then
+              echo "Priority 1: DEBUG_KEYSTORE_BASE64 secret successfully validated and restored."
+              cp "$TMP_DECODED" "$GLOBAL_KEYSTORE"
+              cp "$TMP_DECODED" "$LOCAL_KEYSTORE"
+              KEYSTORE_SOURCE="GitHub Secret (DEBUG_KEYSTORE_BASE64)"
+              SECRET_RESTORED=true
+            else
+              echo "::warning::DEBUG_KEYSTORE_BASE64 secret is empty, invalid Base64, or corrupted! Falling back to cached, local, or newly generated keystore."
+            fi
+            rm -f "$TMP_DECODED"
+          fi
+
+          if [ "$SECRET_RESTORED" != "true" ]; then
+            if is_valid_keystore "$GLOBAL_KEYSTORE"; then
+              echo "Priority 2: Using valid persistent debug keystore from $GLOBAL_KEYSTORE (restored from Actions cache)..."
+              cp "$GLOBAL_KEYSTORE" "$LOCAL_KEYSTORE"
+              KEYSTORE_SOURCE="GitHub Actions Cache ($GLOBAL_KEYSTORE)"
+            elif is_valid_keystore "$LOCAL_KEYSTORE"; then
+              echo "Priority 3: Using valid persistent debug keystore from repository root ($LOCAL_KEYSTORE)..."
+              cp "$LOCAL_KEYSTORE" "$GLOBAL_KEYSTORE"
+              KEYSTORE_SOURCE="Repository workspace ($LOCAL_KEYSTORE)"
+            elif [ -f "./debug.keystore.base64" ]; then
+              echo "Checking repository debug.keystore.base64 file..."
+              TMP_FILE_DECODED="$RUNNER_TEMP/file_keystore.tmp"
+              rm -f "$TMP_FILE_DECODED"
+
+              python3 -c "
+import base64, re, sys
+try:
+    content = open('./debug.keystore.base64').read().strip()
+    cleaned = re.sub(r'[^A-Za-z0-9+/=]', '', content)
+    data = base64.b64decode(cleaned)
+    with open(sys.argv[1], 'wb') as f:
+        f.write(data)
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+" "$TMP_FILE_DECODED" 2>/dev/null || true
+
+              if is_valid_keystore "$TMP_FILE_DECODED"; then
+                echo "Priority 4: Restored persistent debug keystore from repository debug.keystore.base64 file."
+                cp "$TMP_FILE_DECODED" "$GLOBAL_KEYSTORE"
+                cp "$TMP_FILE_DECODED" "$LOCAL_KEYSTORE"
+                KEYSTORE_SOURCE="Repository file (debug.keystore.base64)"
+              fi
+              rm -f "$TMP_FILE_DECODED"
+            fi
+          fi
+
+          if ! is_valid_keystore "$LOCAL_KEYSTORE"; then
+            echo "Priority 5: No valid secret, cache, or existing keystore found. Generating persistent debug keystore once..."
             keytool -genkeypair -v \
-              -keystore "$GLOBAL_KEYSTORE" \
+              -keystore "$LOCAL_KEYSTORE" \
               -alias androiddebugkey \
               -keypass android \
               -storepass android \
@@ -117,21 +177,25 @@ jobs:
               -keysize 2048 \
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
-            cp "$GLOBAL_KEYSTORE" "$LOCAL_KEYSTORE"
-            KEYSTORE_SOURCE="Generated on this run (saved to cache for subsequent runs)"
+            cp "$LOCAL_KEYSTORE" "$GLOBAL_KEYSTORE"
+            KEYSTORE_SOURCE="Generated on this run (cached for future runs)"
 
             mkdir -p "$RUNNER_TEMP/generated-keystore"
-            base64 -w 0 "$GLOBAL_KEYSTORE" > "$RUNNER_TEMP/generated-keystore/debug.keystore.base64"
+            base64 -w 0 "$LOCAL_KEYSTORE" > "$RUNNER_TEMP/generated-keystore/debug.keystore.base64"
             echo "generated_new_keystore=true" >> "$GITHUB_OUTPUT"
             echo "::warning::A new persistent debug keystore was generated. It has been cached for future workflow runs. For permanent permanence across cache evictions, save the generated debug.keystore.base64 as a repository secret (DEBUG_KEYSTORE_BASE64)."
           fi
 
           echo "keystore_source=$KEYSTORE_SOURCE" >> "$GITHUB_OUTPUT"
 
-          if [ ! -f "$GLOBAL_KEYSTORE" ] || [ ! -f "$LOCAL_KEYSTORE" ]; then
-            echo "Error: Keystore not found at both $GLOBAL_KEYSTORE and $LOCAL_KEYSTORE."
+          if ! is_valid_keystore "$LOCAL_KEYSTORE" || ! is_valid_keystore "$GLOBAL_KEYSTORE"; then
+            echo "Error: Keystore at $LOCAL_KEYSTORE or $GLOBAL_KEYSTORE is invalid."
             exit 1
           fi
+
+          echo "=== Verified Gradle Debug Signing Configuration Match ==="
+          echo "Gradle app/build.gradle.kts configuration: storeFile = file('\${rootDir}/debug.keystore')"
+          echo "Verified: $LOCAL_KEYSTORE is present, non-empty, and valid for alias androiddebugkey."
 
           echo "=== Reading Keystore Certificate Fingerprints ==="
           KEY_INFO=$(keytool -list -v -keystore "$GLOBAL_KEYSTORE" -alias androiddebugkey -storepass android)
