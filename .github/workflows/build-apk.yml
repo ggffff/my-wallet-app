@@ -67,13 +67,17 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Create temporary debug keystore
+      - name: Create or restore debug keystore
         run: |
-          echo "=== Creating Temporary Debug Keystore ==="
+          echo "=== Configuring Debug Keystore ==="
           KEYSTORE_PATH="./debug.keystore"
 
           if [ -f "$KEYSTORE_PATH" ]; then
-            echo "Debug keystore already exists at $KEYSTORE_PATH. Generation skipped."
+            echo "Debug keystore already exists at $KEYSTORE_PATH."
+          elif [ -f "./debug.keystore.base64" ]; then
+            echo "Restoring debug keystore from debug.keystore.base64..."
+            base64 -d ./debug.keystore.base64 > "$KEYSTORE_PATH"
+            echo "Debug keystore successfully restored from base64."
           else
             echo "Generating temporary debug keystore at $KEYSTORE_PATH..."
             keytool -genkeypair -v \
@@ -88,11 +92,13 @@ jobs:
           fi
 
           if [ ! -f "$KEYSTORE_PATH" ]; then
-            echo "Error: Failed to find $KEYSTORE_PATH after keystore generation."
+            echo "Error: Failed to find $KEYSTORE_PATH after keystore preparation."
             exit 1
           fi
 
-          echo "Temporary debug keystore verified."
+          echo "Verifying debug keystore SHA-1 fingerprint:"
+          keytool -list -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -storepass android | grep -i sha1 || true
+          echo "Debug keystore verified."
 
           # Ensure Android SDK licenses are accepted and Platform 36 & 36.1 are installed with sudo permissions
           if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
@@ -126,8 +132,20 @@ jobs:
             echo "$GOOGLE_SERVICES_JSON_SECRET" > app/google-services.json
             echo "app/google-services.json successfully restored from secret."
           else
-            echo "::warning::app/google-services.json is not present in the repository and GOOGLE_SERVICES_JSON secret is not configured. Google Sign-In requires google-services.json to authenticate users."
+            echo "::error::app/google-services.json is missing and GOOGLE_SERVICES_JSON secret is not set!"
+            echo "Google Sign-In and Firebase Authentication require a valid google-services.json file to build."
+            echo "Please do one of the following:"
+            echo "1. Commit app/google-services.json to your Git repository, OR"
+            echo "2. Add a repository secret named GOOGLE_SERVICES_JSON in your GitHub repository Settings -> Secrets and variables -> Actions containing the contents of google-services.json."
+            exit 1
           fi
+
+          # Validate that the JSON contains the required web OAuth client ID
+          if ! grep -q "apps.googleusercontent.com" app/google-services.json; then
+            echo "::error::app/google-services.json does not contain any OAuth client IDs (apps.googleusercontent.com). Google Sign-In will fail."
+            exit 1
+          fi
+          echo "Verified app/google-services.json contains OAuth configuration."
 
       - name: Build the debug APK
         env:
@@ -172,6 +190,17 @@ jobs:
             fi
             exit 1
           fi
+
+          echo "=== Verifying default_web_client_id in APK ==="
+          python3 -c "
+          import zipfile, sys
+          with zipfile.ZipFile('$EXPECTED_APK', 'r') as z:
+              data = z.read('resources.arsc')
+              if b'default_web_client_id' not in data:
+                  print('::error::The generated APK does not contain default_web_client_id in resources.arsc! Google Sign-In will fail at runtime.')
+                  sys.exit(1)
+              print('Verified: default_web_client_id is present in APK resources.arsc.')
+          "
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4

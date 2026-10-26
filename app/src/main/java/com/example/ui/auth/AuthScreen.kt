@@ -275,7 +275,7 @@ private fun FeatureRow(
     }
 }
 
-private fun getWebClientId(context: Context): String? {
+internal fun getWebClientId(context: Context): String? {
     // 1. Dynamic reflection lookup on generated R.string class.
     // This avoids compile-time "Unresolved reference: default_web_client_id" errors on CI/GitHub Actions
     // if google-services.json is missing or not committed to the repository, while still retrieving
@@ -322,6 +322,17 @@ private fun getWebClientId(context: Context): String? {
     // 3. Resource identifier lookup via namespace "com.example"
     try {
         val resId = context.resources.getIdentifier("default_web_client_id", "string", "com.example")
+        if (resId != 0) {
+            val clientId = context.getString(resId)
+            if (clientId.isNotBlank()) {
+                return clientId
+            }
+        }
+    } catch (_: Throwable) {}
+
+    // 4. Resource identifier lookup via alternative resource name "web_client_id"
+    try {
+        val resId = context.resources.getIdentifier("web_client_id", "string", context.packageName)
         if (resId != 0) {
             val clientId = context.getString(resId)
             if (clientId.isNotBlank()) {
