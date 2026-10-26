@@ -30,5 +30,11 @@ class ExampleRobolectricTest {
     assertNotNull("Web client ID should not be null when google-services.json is present", webClientId)
     assertTrue("Web client ID should contain .apps.googleusercontent.com", webClientId?.contains(".apps.googleusercontent.com") == true)
   }
+
+  @Test
+  fun `verify AppSignatureHelper expected fingerprints`() {
+    assertEquals("CE:C8:04:28:58:3D:82:05:D6:3A:9F:D0:55:DB:E2:0D:6C:E6:C1:D3", com.example.util.AppSignatureHelper.EXPECTED_SHA1)
+    assertEquals("99:25:B4:22:AC:B6:F3:2D:20:36:DE:29:C0:DE:EC:6D:C8:97:CB:79:D3:6C:6A:7B:26:41:D4:6A:64:AC:0E:38", com.example.util.AppSignatureHelper.EXPECTED_SHA256)
+  }
 }
 

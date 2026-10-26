@@ -26,6 +26,14 @@ class WalletRepository(private val db: FirebaseFirestore) {
     companion object {
         private fun resolveFirestore(context: Context): FirebaseFirestore {
             return try {
+                try {
+                    val dbName = context.getString(R.string.firestore_database_id)
+                    if (dbName.isNotBlank()) {
+                        return FirebaseFirestore.getInstance(dbName)
+                    }
+                } catch (_: Throwable) {
+                    // Fall back to identifier lookup
+                }
                 val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
                 val dbName = if (resId != 0) context.getString(resId) else null
                 if (!dbName.isNullOrBlank()) {

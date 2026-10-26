@@ -96,8 +96,18 @@ jobs:
             exit 1
           fi
 
-          echo "Verifying debug keystore SHA-1 fingerprint:"
-          keytool -list -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -storepass android | grep -i sha1 || true
+          echo "Verifying debug keystore certificate fingerprints:"
+          KEY_SHA1=$(keytool -list -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -storepass android | grep -i "SHA1:" | awk '{print $2}' || true)
+          KEY_SHA256=$(keytool -list -v -keystore "$KEYSTORE_PATH" -alias androiddebugkey -storepass android | grep -i "SHA256:" | awk '{print $2}' || true)
+          echo "Debug Keystore SHA-1:   $KEY_SHA1"
+          echo "Debug Keystore SHA-256: $KEY_SHA256"
+
+          EXPECTED_SHA1="CE:C8:04:28:58:3D:82:05:D6:3A:9F:D0:55:DB:E2:0D:6C:E6:C1:D3"
+          if [ "$KEY_SHA1" != "$EXPECTED_SHA1" ]; then
+            echo "::warning::The debug keystore SHA-1 ($KEY_SHA1) does not match the project expected SHA-1 ($EXPECTED_SHA1)! If Google Sign-In fails with Developer Error (10), register $KEY_SHA1 in Firebase Console."
+          else
+            echo "Verified: Debug keystore SHA-1 matches Firebase configuration ($EXPECTED_SHA1)."
+          fi
           echo "Debug keystore verified."
 
           # Ensure Android SDK licenses are accepted and Platform 36 & 36.1 are installed with sudo permissions
@@ -296,6 +306,9 @@ jobs:
           echo "## Android Debug APK Build & Release Summary" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Workflow Run**: #${{ github.run_number }} (Attempt #${{ github.run_attempt }})" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Target Commit**: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Signing Fingerprints**:" >> "$GITHUB_STEP_SUMMARY"
+          echo "  - **SHA-1**: \`CE:C8:04:28:58:3D:82:05:D6:3A:9F:D0:55:DB:E2:0D:6C:E6:C1:D3\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "  - **SHA-256**: \`99:25:B4:22:AC:B6:F3:2D:20:36:DE:29:C0:DE:EC:6D:C8:97:CB:79:D3:6C:6A:7B:26:41:D4:6A:64:AC:0E:38\`" >> "$GITHUB_STEP_SUMMARY"
 
           if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
             echo "- **Actions Artifact**: \`app-debug-apk\` (available under workflow run summary)" >> "$GITHUB_STEP_SUMMARY"

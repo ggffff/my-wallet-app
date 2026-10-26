@@ -161,7 +161,9 @@ class MainActivity : ComponentActivity() {
                         SplashScreen(onSplashFinished = { showSplash = false })
                     } else if (currentUser == null) {
                         AuthScreen(onAuthSuccess = {
-                            currentUser = auth?.currentUser
+                            val user = Firebase.auth.currentUser ?: auth?.currentUser
+                            Log.d("MainActivity", "onAuthSuccess callback invoked, setting currentUser = ${user?.uid}")
+                            currentUser = user
                         })
                     } else {
                         MainWalletApp(
