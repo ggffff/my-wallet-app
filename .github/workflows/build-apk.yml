@@ -114,6 +114,21 @@ jobs:
             sudo chmod -R 777 "$ANDROID_HOME/platforms" 2>/dev/null || true
           fi
 
+      - name: Verify or restore google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          echo "=== Checking google-services.json ==="
+          if [ -f "app/google-services.json" ]; then
+            echo "app/google-services.json exists in repository."
+          elif [ -n "$GOOGLE_SERVICES_JSON_SECRET" ]; then
+            echo "Restoring app/google-services.json from GOOGLE_SERVICES_JSON secret..."
+            echo "$GOOGLE_SERVICES_JSON_SECRET" > app/google-services.json
+            echo "app/google-services.json successfully restored from secret."
+          else
+            echo "::warning::app/google-services.json is not present in the repository and GOOGLE_SERVICES_JSON secret is not configured. Google Sign-In requires google-services.json to authenticate users."
+          fi
+
       - name: Build the debug APK
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx3072m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC' -Dorg.gradle.workers.max=2 -Dorg.gradle.configuration-cache=false -Dfile.encoding=UTF-8"

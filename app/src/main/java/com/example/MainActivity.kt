@@ -18,12 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -272,7 +272,7 @@ fun MainWalletApp(
                     NavigationBarItem(
                         selected = currentScreen == Screen.STATEMENTS,
                         onClick = { currentScreen = Screen.STATEMENTS },
-                        icon = { Icon(Icons.Default.ViewList, contentDescription = "Statements") },
+                        icon = { Icon(Icons.AutoMirrored.Filled.ViewList, contentDescription = "Statements") },
                         label = { Text(appString(StringKeys.STATEMENTS), fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = BrandGlow,
@@ -292,7 +292,7 @@ fun MainWalletApp(
                     NavigationBarItem(
                         selected = currentScreen == Screen.BILLS,
                         onClick = { currentScreen = Screen.BILLS },
-                        icon = { Icon(Icons.Default.ReceiptLong, contentDescription = "Bills") },
+                        icon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = "Bills") },
                         label = { Text(appString(StringKeys.BILLS), fontSize = 11.sp) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = BrandGlow,
