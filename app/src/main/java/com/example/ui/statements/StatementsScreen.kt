@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,7 +25,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,12 +51,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Transaction
-import com.example.data.model.TransactionType
+import com.example.ui.motion.bounceClick
+import com.example.ui.motion.neonGlow
+import com.example.ui.motion.staggeredEntrance
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
+import com.example.ui.theme.PremiumBlue
+import com.example.ui.theme.PremiumPink
+import com.example.ui.theme.PureWhite
 import com.example.util.LocalAppLanguage
-import com.example.util.StringKeys
-import com.example.util.appString
 import com.example.util.formatBdt
 
 @Composable
@@ -102,9 +105,11 @@ fun StatementsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddTransactionClicked,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.testTag("add_statement_fab")
+                containerColor = PremiumBlue,
+                contentColor = PureWhite,
+                modifier = Modifier
+                    .testTag("add_statement_fab")
+                    .bounceClick(scaleDown = 0.9f, onClick = onAddTransactionClicked)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Transaction")
             }
@@ -117,31 +122,43 @@ fun StatementsScreen(
                 .testTag("statements_screen")
         ) {
             // Header
-            Text(
-                text = appString(StringKeys.STATEMENTS),
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .staggeredEntrance(index = 0)
+            ) {
+                Text(
+                    text = "Transactions & Ledger",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Real-time records of income deposits and expense payouts",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search statements by title, category, account...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                placeholder = { Text("Search by title, category, or account...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = PremiumBlue) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .staggeredEntrance(index = 1),
                 shape = RoundedCornerShape(16.dp)
             )
 
-            // Filter Tabs: All, Income, Spent
+            // Filter Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .staggeredEntrance(index = 2),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 FilterChip(
@@ -161,15 +178,15 @@ fun StatementsScreen(
                 FilterChip(
                     selected = selectedTypeFilter == "SPENT",
                     onClick = { selectedTypeFilter = "SPENT" },
-                    label = { Text("Spent (-)") },
+                    label = { Text("Expense (-)") },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ExpenseRed.copy(alpha = 0.2f),
-                        selectedLabelColor = ExpenseRed
+                        selectedContainerColor = PremiumPink.copy(alpha = 0.2f),
+                        selectedLabelColor = PremiumPink
                     )
                 )
             }
 
-            // Category Chips if any
+            // Categories
             if (categories.isNotEmpty()) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
@@ -192,11 +209,13 @@ fun StatementsScreen(
                 }
             }
 
-            // Overview summary card
+            // Overview summary card with neon accent
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .staggeredEntrance(index = 3)
+                    .neonGlow(color = PremiumBlue.copy(alpha = 0.25f), shape = RoundedCornerShape(16.dp), strokeWidth = 1.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
@@ -208,7 +227,7 @@ fun StatementsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Income",
+                            text = "Filtered Income",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -226,20 +245,20 @@ fun StatementsScreen(
                     )
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Spent",
+                            text = "Filtered Expense",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = formatBdt(totalExpense, language),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = ExpenseRed
+                            color = PremiumPink
                         )
                     }
                 }
             }
 
-            // List of Transactions
+            // List of Transactions with staggered cascade entrance
             if (filteredList.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -249,12 +268,12 @@ fun StatementsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = appString(StringKeys.NO_TRANSACTIONS),
+                            text = "No matching transactions",
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = appString(StringKeys.EMPTY_STATE_HINT),
+                            text = "Add transactions using the '+' button or adjust filters",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 4.dp)
@@ -267,10 +286,11 @@ fun StatementsScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(filteredList, key = { it.id }) { txn ->
+                    itemsIndexed(filteredList, key = { _, txn -> txn.id }) { index, txn ->
                         StatementCardItem(
                             txn = txn,
                             language = language,
+                            modifier = Modifier.staggeredEntrance(index = (4 + index).coerceAtMost(15)),
                             onDelete = { onDeleteTransactionClicked(txn) }
                         )
                     }
@@ -285,13 +305,18 @@ fun StatementsScreen(
 private fun StatementCardItem(
     txn: Transaction,
     language: com.example.util.AppLanguage,
+    modifier: Modifier = Modifier,
     onDelete: () -> Unit
 ) {
     val isIncome = txn.type == "INCOME"
     val tintColor = if (isIncome) IncomeGreen else ExpenseRed
+    val glowColor = if (isIncome) IncomeGreen.copy(alpha = 0.35f) else ExpenseRed.copy(alpha = 0.35f)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .neonGlow(color = glowColor, shape = RoundedCornerShape(16.dp), strokeWidth = 1.dp)
+            .bounceClick(scaleDown = 0.98f) { },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {

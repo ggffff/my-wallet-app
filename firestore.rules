@@ -28,23 +28,27 @@ service cloud.firestore {
 
     function isValidAccount(data) {
       return data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
-             data.type is string && (data.type in ['BANK', 'CASH', 'BKASH', 'NAGAD', 'ROCKET', 'OTHER']) &&
+             data.type is string && (data.type in ['BANK', 'MFS', 'CASH_FLOW', 'CASH', 'BKASH', 'NAGAD', 'ROCKET', 'OTHER']) &&
              (data.balance is int || data.balance is float) &&
              (!('accountNumber' in data) || data.accountNumber is string) &&
              (!('colorHex' in data) || data.colorHex is string) &&
              (!('iconName' in data) || data.iconName is string) &&
+             (!('isArchived' in data) || data.isArchived is bool) &&
              (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
              (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
     }
 
     function isValidTransaction(data) {
       return data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
-             data.type is string && (data.type in ['INCOME', 'SPENT']) &&
+             data.type is string && (data.type in ['INCOME', 'SPENT', 'TRANSFER']) &&
              (data.amount is int || data.amount is float) && data.amount >= 0 &&
              data.category is string && data.category.size() >= 1 && data.category.size() <= 100 &&
              data.accountId is string && data.accountId.size() >= 1 &&
              data.accountName is string && data.accountName.size() >= 1 &&
              data.date is string && data.date.size() >= 8 && data.date.size() <= 30 &&
+             (!('toAccountId' in data) || data.toAccountId is string) &&
+             (!('toAccountName' in data) || data.toAccountName is string) &&
+             (!('transferFee' in data) || data.transferFee is int || data.transferFee is float) &&
              (!('note' in data) || data.note is string) &&
              (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
              (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
@@ -54,7 +58,11 @@ service cloud.firestore {
       return data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
              (data.targetAmount is int || data.targetAmount is float) && data.targetAmount >= 0 &&
              (data.savedAmount is int || data.savedAmount is float) && data.savedAmount >= 0 &&
+             (!('startDate' in data) || data.startDate is string) &&
              (!('targetDate' in data) || data.targetDate is string) &&
+             (!('linkedAccountId' in data) || data.linkedAccountId is string) &&
+             (!('reminderFrequency' in data) || data.reminderFrequency is string) &&
+             (!('reminderEnabled' in data) || data.reminderEnabled is bool) &&
              (!('icon' in data) || data.icon is string) &&
              (!('note' in data) || data.note is string) &&
              (!('isCompleted' in data) || data.isCompleted is bool) &&
@@ -69,6 +77,31 @@ service cloud.firestore {
              data.isPaid is bool &&
              data.notifyEnabled is bool &&
              (!('category' in data) || data.category is string) &&
+             (!('isRecurring' in data) || data.isRecurring is bool) &&
+             (!('recurringFrequency' in data) || data.recurringFrequency is string) &&
+             (!('paidFromAccountId' in data) || data.paidFromAccountId is string) &&
+             (!('paidAt' in data) || data.paidAt is string) &&
+             (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidBudget(data) {
+      return data.category is string && data.category.size() >= 1 && data.category.size() <= 100 &&
+             (data.monthlyLimit is int || data.monthlyLimit is float) && data.monthlyLimit >= 0 &&
+             (!('monthYear' in data) || data.monthYear is string) &&
+             (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidDebt(data) {
+      return data.personName is string && data.personName.size() >= 1 && data.personName.size() <= 150 &&
+             data.type is string && (data.type in ['LENT', 'BORROWED']) &&
+             (data.amount is int || data.amount is float) && data.amount >= 0 &&
+             (!('repaidAmount' in data) || data.repaidAmount is int || data.repaidAmount is float) &&
+             (!('date' in data) || data.date is string) &&
+             (!('dueDate' in data) || data.dueDate is string) &&
+             (!('note' in data) || data.note is string) &&
+             (!('isSettled' in data) || data.isSettled is bool) &&
              (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
              (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
     }
@@ -95,6 +128,16 @@ service cloud.firestore {
       match /bills/{billId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidBill(request.resource.data);
+      }
+
+      match /budgets/{budgetId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidBudget(request.resource.data);
+      }
+
+      match /debts/{debtId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidDebt(request.resource.data);
       }
     }
   }

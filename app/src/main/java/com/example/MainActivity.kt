@@ -8,23 +8,39 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.CircularProgressIndicator
+import com.example.ui.theme.LocalAppTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,12 +49,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +65,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +86,7 @@ import com.example.data.model.Transaction
 import com.example.data.model.TransactionType
 import com.example.data.model.UserProfile
 import com.example.data.repository.WalletRepository
+import com.example.ui.accounts.AccountsScreen
 import com.example.ui.auth.AuthScreen
 import com.example.ui.bills.BillsScreen
 import com.example.ui.chat.ChatBotScreen
@@ -70,12 +96,17 @@ import com.example.ui.dialogs.AddGoalDialog
 import com.example.ui.dialogs.AddTransactionDialog
 import com.example.ui.goals.GoalsScreen
 import com.example.ui.home.HomeScreen
+import com.example.ui.motion.bounceClick
+import com.example.ui.motion.neonGlow
+import com.example.ui.reports.ReportsScreen
 import com.example.ui.settings.SettingsScreen
 import com.example.ui.splash.SplashScreen
 import com.example.ui.statements.StatementsScreen
-import com.example.ui.theme.BrandGlow
-import com.example.ui.theme.BrandPrimary
+import com.example.ui.theme.AppTheme
 import com.example.ui.theme.MyWalletTheme
+import com.example.ui.theme.PremiumBlue
+import com.example.ui.theme.PremiumPink
+import com.example.ui.theme.PureWhite
 import com.example.util.AppLanguage
 import com.example.util.LocalAppLanguage
 import com.example.util.StringKeys
@@ -85,58 +116,63 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 
 enum class Screen {
     HOME,
-    STATEMENTS,
+    ACCOUNTS,
+    REPORTS,
+    SETTINGS,
+    // Working Sub-screens
+    TRANSACTIONS,
     GOALS,
     BILLS,
-    CHATBOT,
-    SETTINGS
+    CHATBOT
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Install logging for any uncaught exceptions to help diagnostics
+        // Install logging for uncaught exceptions
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("MyWallet", "Uncaught exception on thread ${thread.name}", throwable)
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        // STEP 1: Mandatory App Check intent wiring (safely executed)
+        // App Check intent wiring
         try {
             configureAppCheck(this, intent)
         } catch (e: Throwable) {
             Log.e("MainActivity", "Error during configureAppCheck", e)
         }
 
-        // Safe EdgeToEdge invocation compatible with HyperOS / Android 15
+        // EdgeToEdge invocation
         try {
             enableEdgeToEdge()
         } catch (t: Throwable) {
-            Log.w("MainActivity", "enableEdgeToEdge encountered an error", t)
+            Log.w("MainActivity", "enableEdgeToEdge error", t)
         }
 
         setContent {
             val systemDark = isSystemInDarkTheme()
-            var isDarkTheme by remember { mutableStateOf(true) }
+            val context = LocalContext.current
+            val prefs = remember { context.getSharedPreferences("wallet_prefs", Context.MODE_PRIVATE) }
+            val savedThemeId = remember { prefs.getString("selected_theme", AppTheme.CYBER_NEON.id) ?: AppTheme.CYBER_NEON.id }
+            var currentTheme by remember { mutableStateOf(AppTheme.fromId(savedThemeId)) }
+            var isDarkTheme by remember { mutableStateOf(currentTheme.isDark) }
             var appLanguage by remember { mutableStateOf(AppLanguage.ENGLISH) }
 
-            MyWalletTheme(darkTheme = isDarkTheme) {
+            MyWalletTheme(appTheme = currentTheme, darkTheme = isDarkTheme) {
                 CompositionLocalProvider(LocalAppLanguage provides appLanguage) {
                     var showSplash by remember { mutableStateOf(true) }
 
-                    // Safely obtain Firebase Auth instance
                     val auth = remember {
                         try {
                             Firebase.auth
                         } catch (e: Throwable) {
-                            Log.e("MainActivity", "Firebase Auth initialization error", e)
+                            Log.e("MainActivity", "Firebase Auth init error", e)
                             null
                         }
                     }
@@ -157,27 +193,44 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    if (showSplash) {
-                        SplashScreen(onSplashFinished = { showSplash = false })
-                    } else if (currentUser == null) {
-                        AuthScreen(onAuthSuccess = {
-                            val user = Firebase.auth.currentUser ?: auth?.currentUser
-                            Log.d("MainActivity", "onAuthSuccess callback invoked, setting currentUser = ${user?.uid}")
-                            currentUser = user
-                        })
-                    } else {
-                        MainWalletApp(
-                            currentUserId = currentUser!!.uid,
-                            isDarkTheme = isDarkTheme,
-                            appLanguage = appLanguage,
-                            onToggleDarkTheme = { isDarkTheme = it },
-                            onToggleLanguage = { appLanguage = it },
-                            onSignOut = {
-                                signOut(this@MainActivity) {
-                                    currentUser = null
+                    Crossfade(
+                        targetState = showSplash,
+                        animationSpec = tween(450, easing = FastOutSlowInEasing),
+                        label = "splashCrossfade"
+                    ) { isSplash ->
+                        if (isSplash) {
+                            SplashScreen(onSplashFinished = { showSplash = false })
+                        } else if (currentUser == null) {
+                            AuthScreen(onAuthSuccess = {
+                                val user = Firebase.auth.currentUser ?: auth?.currentUser
+                                Log.d("MainActivity", "Google sign-in succeeded, entering Dashboard directly: ${user?.uid}")
+                                currentUser = user
+                            })
+                        } else {
+                            // Direct navigation into MainWalletApp with strictly NO PIN verification screen
+                            MainWalletApp(
+                                currentUserId = currentUser!!.uid,
+                                isDarkTheme = isDarkTheme,
+                                currentTheme = currentTheme,
+                                appLanguage = appLanguage,
+                                onToggleDarkTheme = { dark ->
+                                    isDarkTheme = dark
+                                    currentTheme = if (dark) AppTheme.CYBER_NEON else AppTheme.FROSTED_PEARL
+                                    prefs.edit().putString("selected_theme", currentTheme.id).apply()
+                                },
+                                onSelectTheme = { theme ->
+                                    currentTheme = theme
+                                    isDarkTheme = theme.isDark
+                                    prefs.edit().putString("selected_theme", theme.id).apply()
+                                },
+                                onToggleLanguage = { appLanguage = it },
+                                onSignOut = {
+                                    signOut(this@MainActivity) {
+                                        currentUser = null
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -190,13 +243,16 @@ class MainActivity : ComponentActivity() {
 fun MainWalletApp(
     currentUserId: String,
     isDarkTheme: Boolean,
+    currentTheme: AppTheme = AppTheme.CYBER_NEON,
     appLanguage: AppLanguage,
     onToggleDarkTheme: (Boolean) -> Unit,
+    onSelectTheme: (AppTheme) -> Unit = {},
     onToggleLanguage: (AppLanguage) -> Unit,
     onSignOut: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val repository = remember(currentUserId) { WalletRepository(context) }
 
     val userProfile by remember(repository) { repository.observeUserProfile() }.collectAsStateWithLifecycle(initialValue = null)
@@ -204,6 +260,17 @@ fun MainWalletApp(
     val transactions by remember(repository) { repository.observeTransactions() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val goals by remember(repository) { repository.observeGoals() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val bills by remember(repository) { repository.observeBills() }.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    LaunchedEffect(userProfile?.themeMode) {
+        userProfile?.themeMode?.let { mode ->
+            if (mode.isNotBlank()) {
+                val theme = AppTheme.fromId(mode)
+                if (theme != currentTheme) {
+                    onSelectTheme(theme)
+                }
+            }
+        }
+    }
 
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
 
@@ -214,102 +281,107 @@ fun MainWalletApp(
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var showAddBillDialog by remember { mutableStateOf(false) }
 
-    // Handle system back navigation
+    // System BackHandler returns to Home from any tab or sub-screen
     BackHandler(enabled = currentScreen != Screen.HOME) {
         currentScreen = Screen.HOME
     }
 
+    val isSubScreen = currentScreen == Screen.TRANSACTIONS ||
+            currentScreen == Screen.GOALS ||
+            currentScreen == Screen.BILLS ||
+            currentScreen == Screen.CHATBOT
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when (currentScreen) {
-                            Screen.HOME -> appString(StringKeys.APP_NAME)
-                            Screen.STATEMENTS -> appString(StringKeys.STATEMENTS)
-                            Screen.GOALS -> appString(StringKeys.GOALS)
-                            Screen.BILLS -> appString(StringKeys.BILLS)
-                            Screen.CHATBOT -> appString(StringKeys.CHATBOT)
-                            Screen.SETTINGS -> appString(StringKeys.SETTINGS)
-                        },
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            if (currentScreen != Screen.HOME) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = when (currentScreen) {
+                                Screen.HOME -> "My Wallet"
+                                Screen.ACCOUNTS -> "Accounts"
+                                Screen.REPORTS -> "Reports & Analytics"
+                                Screen.SETTINGS -> "Settings & Profile"
+                                Screen.TRANSACTIONS -> "Statements"
+                                Screen.GOALS -> "Saving Goals"
+                                Screen.BILLS -> "Bills & Dues"
+                                Screen.CHATBOT -> "AI Financial Advisor"
+                            },
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    },
+                    navigationIcon = {
+                        if (isSubScreen) {
+                            IconButton(onClick = { currentScreen = Screen.HOME }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        }
+                    },
+                    actions = {
+                        if (!isSubScreen && currentScreen != Screen.SETTINGS) {
+                            IconButton(
+                                onClick = { currentScreen = Screen.SETTINGS },
+                                modifier = Modifier.bounceClick(scaleDown = 0.9f)
+                            ) {
+                                Icon(
+                                    Icons.Default.Settings,
+                                    contentDescription = "Settings",
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
                     )
-                },
-                navigationIcon = {
-                    if (currentScreen == Screen.SETTINGS) {
-                        IconButton(onClick = { currentScreen = Screen.HOME }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                },
-                actions = {
-                    if (currentScreen != Screen.SETTINGS) {
-                        IconButton(onClick = { currentScreen = Screen.SETTINGS }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
-            )
+            }
         },
         bottomBar = {
-            if (currentScreen != Screen.SETTINGS) {
+            if (!isSubScreen) {
+                // 4 Core Tabs with modern Pill Capsule Indicator design:
+                // Home, Accounts, Reports, Settings
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = Color(0xFF080E1C),
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.testTag("bottom_navigation_bar")
                 ) {
-                    NavigationBarItem(
+                    // 1. Home
+                    Animated3DBottomNavItem(
                         selected = currentScreen == Screen.HOME,
                         onClick = { currentScreen = Screen.HOME },
-                        icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = "Home") },
-                        label = { Text("Home", fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = BrandGlow,
-                            indicatorColor = BrandPrimary.copy(alpha = 0.2f)
-                        )
+                        icon = Icons.Default.AccountBalanceWallet,
+                        label = "Home",
+                        glowColor = MaterialTheme.colorScheme.primary
                     )
-                    NavigationBarItem(
-                        selected = currentScreen == Screen.STATEMENTS,
-                        onClick = { currentScreen = Screen.STATEMENTS },
-                        icon = { Icon(Icons.AutoMirrored.Filled.ViewList, contentDescription = "Statements") },
-                        label = { Text(appString(StringKeys.STATEMENTS), fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = BrandGlow,
-                            indicatorColor = BrandPrimary.copy(alpha = 0.2f)
-                        )
+
+                    // 2. Accounts
+                    Animated3DBottomNavItem(
+                        selected = currentScreen == Screen.ACCOUNTS,
+                        onClick = { currentScreen = Screen.ACCOUNTS },
+                        icon = Icons.Default.CreditCard,
+                        label = "Accounts",
+                        glowColor = MaterialTheme.colorScheme.primary
                     )
-                    NavigationBarItem(
-                        selected = currentScreen == Screen.GOALS,
-                        onClick = { currentScreen = Screen.GOALS },
-                        icon = { Icon(Icons.Default.Savings, contentDescription = "Goals") },
-                        label = { Text(appString(StringKeys.GOALS), fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = BrandGlow,
-                            indicatorColor = BrandPrimary.copy(alpha = 0.2f)
-                        )
+
+                    // 3. Reports
+                    Animated3DBottomNavItem(
+                        selected = currentScreen == Screen.REPORTS,
+                        onClick = { currentScreen = Screen.REPORTS },
+                        icon = Icons.Default.BarChart,
+                        label = "Reports",
+                        glowColor = MaterialTheme.colorScheme.primary
                     )
-                    NavigationBarItem(
-                        selected = currentScreen == Screen.BILLS,
-                        onClick = { currentScreen = Screen.BILLS },
-                        icon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = "Bills") },
-                        label = { Text(appString(StringKeys.BILLS), fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = BrandGlow,
-                            indicatorColor = BrandPrimary.copy(alpha = 0.2f)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = currentScreen == Screen.CHATBOT,
-                        onClick = { currentScreen = Screen.CHATBOT },
-                        icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "AI") },
-                        label = { Text("AI Advisor", fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = BrandGlow,
-                            indicatorColor = BrandPrimary.copy(alpha = 0.2f)
-                        )
+
+                    // 4. Settings
+                    Animated3DBottomNavItem(
+                        selected = currentScreen == Screen.SETTINGS,
+                        onClick = { currentScreen = Screen.SETTINGS },
+                        icon = Icons.Default.Settings,
+                        label = "Settings",
+                        glowColor = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -322,7 +394,14 @@ fun MainWalletApp(
         ) {
             AnimatedContent(
                 targetState = currentScreen,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing)) +
+                     scaleIn(initialScale = 0.96f, animationSpec = tween(260, easing = FastOutSlowInEasing)))
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
+                            scaleOut(targetScale = 1.02f, animationSpec = tween(160, easing = FastOutSlowInEasing))
+                        )
+                },
                 label = "screenTransition"
             ) { screen ->
                 when (screen) {
@@ -332,57 +411,75 @@ fun MainWalletApp(
                         transactions = transactions,
                         bills = bills,
                         onAddAccountClicked = { showAddAccountDialog = true },
+                        onUpdateAccount = { updated ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.updateAccount(updated)
+                                    snackbarHostState.showSnackbar("Account \"${updated.name}\" balance updated")
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error updating account", e)
+                                    snackbarHostState.showSnackbar("Failed to update account: ${e.message}")
+                                }
+                            }
+                        },
+                        onDeleteAccount = { acc ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.deleteAccount(acc.id)
+                                    snackbarHostState.showSnackbar("Account \"${acc.name}\" deleted")
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error deleting account", e)
+                                    snackbarHostState.showSnackbar("Failed to delete account: ${e.message}")
+                                }
+                            }
+                        },
                         onAddTransactionClicked = { type ->
                             transactionDialogType = type
                             showAddTransactionDialog = true
                         },
-                        onViewAllStatementsClicked = { currentScreen = Screen.STATEMENTS },
+                        onViewAllStatementsClicked = { currentScreen = Screen.TRANSACTIONS },
                         onViewBillsClicked = { currentScreen = Screen.BILLS },
-                        onViewGoalsClicked = { currentScreen = Screen.GOALS }
+                        onViewGoalsClicked = { currentScreen = Screen.GOALS },
+                        onOpenAiAdvisor = { currentScreen = Screen.CHATBOT },
+                        onOpenSettings = { currentScreen = Screen.SETTINGS }
                     )
-                    Screen.STATEMENTS -> StatementsScreen(
+                    Screen.ACCOUNTS -> AccountsScreen(
+                        accounts = accounts,
+                        onAddAccountClicked = { showAddAccountDialog = true },
+                        onUpdateAccount = { updated ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.updateAccount(updated)
+                                    snackbarHostState.showSnackbar("Account \"${updated.name}\" updated")
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error updating account", e)
+                                    snackbarHostState.showSnackbar("Failed to update account: ${e.message}")
+                                }
+                            }
+                        },
+                        onDeleteAccount = { acc ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.deleteAccount(acc.id)
+                                    snackbarHostState.showSnackbar("Account \"${acc.name}\" deleted")
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error deleting account", e)
+                                    snackbarHostState.showSnackbar("Failed to delete account: ${e.message}")
+                                }
+                            }
+                        }
+                    )
+                    Screen.REPORTS -> ReportsScreen(
                         transactions = transactions,
-                        onAddTransactionClicked = {
-                            transactionDialogType = TransactionType.SPENT
-                            showAddTransactionDialog = true
-                        },
-                        onDeleteTransactionClicked = { txn ->
-                            coroutineScope.launch { repository.deleteTransaction(txn) }
-                        }
-                    )
-                    Screen.GOALS -> GoalsScreen(
-                        goals = goals,
-                        accounts = accounts,
-                        onAddGoalClicked = { showAddGoalDialog = true },
-                        onAdjustSavings = { goal, delta, accId ->
-                            coroutineScope.launch { repository.adjustGoalSavings(goal, delta, accId) }
-                        },
-                        onDeleteGoal = { goal ->
-                            coroutineScope.launch { repository.deleteGoal(goal.id) }
-                        }
-                    )
-                    Screen.BILLS -> BillsScreen(
-                        bills = bills,
-                        accounts = accounts,
-                        onAddBillClicked = { showAddBillDialog = true },
-                        onToggleBillPaid = { bill, accId ->
-                            coroutineScope.launch { repository.toggleBillPaid(bill, accId) }
-                        },
-                        onDeleteBill = { bill ->
-                            coroutineScope.launch { repository.deleteBill(bill.id) }
-                        }
-                    )
-                    Screen.CHATBOT -> ChatBotScreen(
-                        accounts = accounts,
-                        transactions = transactions,
-                        goals = goals,
-                        bills = bills
+                        onOpenAiAdvisor = { currentScreen = Screen.CHATBOT }
                     )
                     Screen.SETTINGS -> SettingsScreen(
                         userProfile = userProfile,
                         currentDarkTheme = isDarkTheme,
+                        currentTheme = currentTheme,
                         currentLanguage = appLanguage,
                         onToggleDarkTheme = onToggleDarkTheme,
+                        onSelectTheme = onSelectTheme,
                         onToggleLanguage = onToggleLanguage,
                         onSaveProfile = { name, avatar ->
                             coroutineScope.launch {
@@ -392,26 +489,88 @@ fun MainWalletApp(
                                         photoUrl = avatar,
                                         currency = "BDT",
                                         language = appLanguage.code,
-                                        themeMode = if (isDarkTheme) "dark" else "light"
+                                        themeMode = currentTheme.id
                                     )
                                 )
+                                snackbarHostState.showSnackbar("Profile & theme saved")
                             }
                         },
-                        onSignOut = onSignOut
+                        onSignOut = onSignOut,
+                        onOpenGoals = { currentScreen = Screen.GOALS },
+                        onOpenBills = { currentScreen = Screen.BILLS }
+                    )
+                    Screen.TRANSACTIONS -> StatementsScreen(
+                        transactions = transactions,
+                        onAddTransactionClicked = {
+                            transactionDialogType = TransactionType.SPENT
+                            showAddTransactionDialog = true
+                        },
+                        onDeleteTransactionClicked = { txn ->
+                            coroutineScope.launch {
+                                repository.deleteTransaction(txn)
+                                snackbarHostState.showSnackbar("Transaction deleted")
+                            }
+                        }
+                    )
+                    Screen.GOALS -> GoalsScreen(
+                        goals = goals,
+                        accounts = accounts,
+                        onAddGoalClicked = { showAddGoalDialog = true },
+                        onAdjustSavings = { goal, delta, accId ->
+                            coroutineScope.launch {
+                                repository.adjustGoalSavings(goal, delta, accId)
+                                snackbarHostState.showSnackbar("Goal updated")
+                            }
+                        },
+                        onDeleteGoal = { goal ->
+                            coroutineScope.launch {
+                                repository.deleteGoal(goal.id)
+                                snackbarHostState.showSnackbar("Goal removed")
+                            }
+                        }
+                    )
+                    Screen.BILLS -> BillsScreen(
+                        bills = bills,
+                        accounts = accounts,
+                        onAddBillClicked = { showAddBillDialog = true },
+                        onToggleBillPaid = { bill, accId ->
+                            coroutineScope.launch {
+                                repository.toggleBillPaid(bill, accId)
+                                snackbarHostState.showSnackbar(if (!bill.isPaid) "Bill marked as paid" else "Bill reopened")
+                            }
+                        },
+                        onDeleteBill = { bill ->
+                            coroutineScope.launch {
+                                repository.deleteBill(bill.id)
+                                snackbarHostState.showSnackbar("Bill removed")
+                            }
+                        }
+                    )
+                    Screen.CHATBOT -> ChatBotScreen(
+                        accounts = accounts,
+                        transactions = transactions,
+                        goals = goals,
+                        bills = bills
                     )
                 }
             }
         }
     }
 
-    // Dialogs
+    // Modal Dialogs with clear feedback
     if (showAddAccountDialog) {
         AddAccountDialog(
             onDismiss = { showAddAccountDialog = false },
             onConfirm = { account ->
+                showAddAccountDialog = false
                 coroutineScope.launch {
-                    repository.addAccount(account)
-                    showAddAccountDialog = false
+                    try {
+                        repository.addAccount(account)
+                        snackbarHostState.showSnackbar("Account \"${account.name}\" created")
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Failed to add account", e)
+                        snackbarHostState.showSnackbar("Could not add account: ${e.message}")
+                    }
                 }
             }
         )
@@ -426,6 +585,7 @@ fun MainWalletApp(
                 coroutineScope.launch {
                     repository.addTransaction(txn)
                     showAddTransactionDialog = false
+                    snackbarHostState.showSnackbar("Transaction \"${txn.title}\" recorded")
                 }
             },
             onNeedAddAccount = {
@@ -442,6 +602,7 @@ fun MainWalletApp(
                 coroutineScope.launch {
                     repository.addGoal(goal)
                     showAddGoalDialog = false
+                    snackbarHostState.showSnackbar("Goal \"${goal.title}\" created")
                 }
             }
         )
@@ -454,10 +615,80 @@ fun MainWalletApp(
                 coroutineScope.launch {
                     repository.addBill(bill)
                     showAddBillDialog = false
+                    snackbarHostState.showSnackbar("Bill \"${bill.title}\" added")
                 }
             }
         )
     }
+}
+
+/**
+ * Bottom Navigation Item with pill capsule indicator matching design.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    label: String,
+    glowColor: Color
+) {
+    val isDark = LocalAppTheme.current.isDark
+    val activePillColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.30f) else Color(0xFFDCEBFE)
+    val activeIconTint = if (isDark) Color(0xFF00F0FF) else Color(0xFF0284C7)
+    val inactiveTint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = {
+            if (selected) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .width(64.dp)
+                        .height(32.dp)
+                        .background(activePillColor, shape = RoundedCornerShape(16.dp))
+                        .border(1.dp, Color(0xFF00F0FF).copy(alpha = 0.65f), RoundedCornerShape(16.dp))
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = activeIconTint,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            } else {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .width(64.dp)
+                        .height(32.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = inactiveTint,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        },
+        label = {
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) (if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F172A)) else inactiveTint,
+                maxLines = 2,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                lineHeight = 13.sp
+            )
+        },
+        colors = NavigationBarItemDefaults.colors(
+            indicatorColor = Color.Transparent
+        )
+    )
 }
 
 private fun signOut(context: Context, onComplete: () -> Unit) {

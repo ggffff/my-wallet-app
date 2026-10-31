@@ -2,6 +2,8 @@ package com.example.ui.goals
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import com.example.ui.motion.AnimatedGoalProgressBar
+import com.example.ui.motion.tilt3D
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +64,7 @@ import com.example.ui.dialogs.GoalSavingsDialog
 import com.example.ui.theme.BrandGlow
 import com.example.ui.theme.BrandPrimary
 import com.example.ui.theme.IncomeGreen
+import com.example.util.AppLanguage
 import com.example.util.LocalAppLanguage
 import com.example.util.StringKeys
 import com.example.util.appString
@@ -210,7 +213,9 @@ private fun GoalCardItem(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .tilt3D(maxRotationX = 5f, maxRotationY = 5f, elevationDp = 8f),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -266,18 +271,61 @@ private fun GoalCardItem(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Progress bar
-            LinearProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
-                color = if (isCompleted) IncomeGreen else BrandGlow,
-                trackColor = MaterialTheme.colorScheme.surface
+            // Animated Progress bar with traveling shimmer
+            AnimatedGoalProgressBar(
+                progressPercent = progress,
+                isCompleted = isCompleted
             )
 
             Spacer(modifier = Modifier.height(10.dp))
+
+            // AI Saving Planner & Deadline countdown calculation
+            val paceInfo = remember(goal.targetDate, remaining) {
+                if (goal.targetDate.isNotBlank() && remaining > 0) {
+                    try {
+                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                        val target = sdf.parse(goal.targetDate)
+                        if (target != null) {
+                            val diffDays = ((target.time - System.currentTimeMillis()) / (1000L * 60 * 60 * 24)).toInt()
+                            if (diffDays <= 0) {
+                                Pair("Deadline reached", "Consider extending the deadline or adding a lump sum")
+                            } else {
+                                val daily = remaining / diffDays
+                                val weekly = daily * 7
+                                val monthly = daily * 30
+                                val badge = "$diffDays days left"
+                                val advice = "AI Saving Plan: Save ~${formatBdt(daily, language)}/day (${formatBdt(weekly, language)}/week) to achieve on time."
+                                Pair(badge, advice)
+                            }
+                        } else null
+                    } catch (e: Exception) { null }
+                } else null
+            }
+
+            if (paceInfo != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(BrandPrimary.copy(alpha = 0.12f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = paceInfo.first,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = BrandGlow
+                    )
+                    Text(
+                        text = paceInfo.second,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -316,7 +364,7 @@ private fun GoalCardItem(
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             ) {
-                Text("Manage Savings (+ / -)", fontWeight = FontWeight.SemiBold)
+                Text(if (language == AppLanguage.BANGLA) "সঞ্চয় জমা বা উত্তোলন (+ / -)" else "Manage Savings (+ / -)", fontWeight = FontWeight.SemiBold)
             }
         }
     }
