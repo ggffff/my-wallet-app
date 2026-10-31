@@ -250,8 +250,19 @@ jobs:
           "$APKSIGNER" verify --verbose "$APK"
           CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$APK")"
 
-          APK_SHA1_RAW="$(printf '%s\n' "$CERT_OUTPUT" | awk -F': ' '/certificate SHA-1 digest:/{print $2; exit}')"
-          APK_SHA256_RAW="$(printf '%s\n' "$CERT_OUTPUT" | awk -F': ' '/certificate SHA-256 digest:/{print $2; exit}')"
+          # apksigner prints signer certificate digests. Match case-insensitively
+          # and take the final field so formatting differences do not produce an
+          # empty digest and a false signature-mismatch failure.
+          APK_SHA1_RAW="$(printf '%s\n' "$CERT_OUTPUT" | awk 'tolower($0) ~ /certificate sha-1 digest:/ {print $NF; exit}')"
+          APK_SHA256_RAW="$(printf '%s\n' "$CERT_OUTPUT" | awk 'tolower($0) ~ /certificate sha-256 digest:/ {print $NF; exit}')"
+
+          echo "apksigner certificate output:"
+          printf '%s\n' "$CERT_OUTPUT"
+
+          if [ -z "$APK_SHA1_RAW" ]; then
+            echo "::error::Could not extract the APK signer SHA-1 from apksigner output."
+            exit 1
+          fi
 
           format_fp() {
             printf '%s' "$1" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g; s/:$//'
@@ -262,6 +273,9 @@ jobs:
 
           APK_SHA1="$(format_fp "$APK_SHA1_RAW")"
           APK_SHA256="$(format_fp "$APK_SHA256_RAW")"
+
+          echo "Expected keystore SHA-1: $EXPECTED_KEYSTORE_SHA1"
+          echo "Actual APK SHA-1: $APK_SHA1"
 
           if [ "$(normalize_fp "$APK_SHA1")" != "$(normalize_fp "$EXPECTED_KEYSTORE_SHA1")" ]; then
             echo "::error::APK was not signed with the exact keystore restored earlier."
