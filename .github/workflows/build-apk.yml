@@ -9,60 +9,56 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: debug-apk-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build Debug APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
       - name: Set up Temurin Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
       - name: Verify Java environment
+        shell: bash
         run: |
+          set -euo pipefail
           echo "=== Verifying Java Environment ==="
           java -version
-          echo "JAVA_HOME: $JAVA_HOME"
+          echo "JAVA_HOME: ${JAVA_HOME:-not-set}"
 
-          if [ -z "$JAVA_HOME" ]; then
-            echo "Error: JAVA_HOME is not set."
+          if [ -z "${JAVA_HOME:-}" ]; then
+            echo "::error::JAVA_HOME is not set."
             exit 1
           fi
 
-          # Extract Java major version
-          RAW_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
-          echo "Full Java version string: $RAW_VERSION"
-          
-          MAJOR_VERSION=$(echo "$RAW_VERSION" | awk -F '.' '{print $1}')
+          RAW_VERSION="$(java -version 2>&1 | awk -F '"' '/version/ {print $2; exit}')"
+          MAJOR_VERSION="${RAW_VERSION%%.*}"
           if [ "$MAJOR_VERSION" = "1" ]; then
-            # Format 1.8...
-            MAJOR_VERSION=$(echo "$RAW_VERSION" | awk -F '.' '{print $2}')
+            MAJOR_VERSION="$(printf '%s' "$RAW_VERSION" | awk -F '.' '{print $2}')"
           fi
 
-          echo "Detected Java major version: $MAJOR_VERSION"
-
-          if [ -z "$MAJOR_VERSION" ] || ! [ "$MAJOR_VERSION" -ge 0 ] 2>/dev/null; then
-            echo "Error: Failed to detect valid Java major version."
+          if ! [[ "$MAJOR_VERSION" =~ ^[0-9]+$ ]] || [ "$MAJOR_VERSION" -lt 17 ]; then
+            echo "::error::Java 17 or newer is required. Detected: ${RAW_VERSION:-unknown}"
             exit 1
           fi
 
-          if [ "$MAJOR_VERSION" -lt 17 ]; then
-            echo "Error: Java major version must be 17 or newer. Detected: $MAJOR_VERSION"
-            exit 1
-          fi
+          echo "Java environment verified: Java $MAJOR_VERSION"
 
-          echo "Java environment verified successfully: Java $MAJOR_VERSION ($JAVA_HOME)"
-
-      - name: Set up Gradle 9.3.1
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
@@ -78,9 +74,11 @@ jobs:
 
       - name: Configure persistent debug keystore
         id: keystore
+        shell: bash
         env:
           DEBUG_KEYSTORE_SECRET: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
+          set -euo pipefail
           echo "=== Configuring Persistent Debug Keystore ==="
           mkdir -p "$HOME/.android"
           GLOBAL_KEYSTORE="$HOME/.android/debug.keystore"
@@ -89,85 +87,94 @@ jobs:
 
           is_valid_keystore() {
             local ks="$1"
-            [ -n "$ks" ] && [ -f "$ks" ] && [ -s "$ks" ] && keytool -list -keystore "$ks" -alias androiddebugkey -storepass android >/dev/null 2>&1
+            [ -n "$ks" ] &&
+            [ -f "$ks" ] &&
+            [ -s "$ks" ] &&
+            keytool -list -keystore "$ks" -alias androiddebugkey -storepass android >/dev/null 2>&1
           }
 
           SECRET_RESTORED=false
-          if [ -n "$DEBUG_KEYSTORE_SECRET" ]; then
+
+          if [ -n "${DEBUG_KEYSTORE_SECRET:-}" ]; then
             echo "Checking DEBUG_KEYSTORE_BASE64 repository secret..."
             TMP_DECODED="$RUNNER_TEMP/secret_keystore.tmp"
             rm -f "$TMP_DECODED"
 
-            python3 -c "
-import base64, re, sys, os
-secret = os.environ.get('DEBUG_KEYSTORE_SECRET', '').strip()
-if not secret:
-    sys.exit(1)
-cleaned = re.sub(r'[^A-Za-z0-9+/=]', '', secret)
-if len(cleaned) < 64:
-    sys.exit(1)
-try:
-    data = base64.b64decode(cleaned, validate=True)
-    if len(data) < 100:
-        sys.exit(1)
-    with open(sys.argv[1], 'wb') as f:
-        f.write(data)
-    sys.exit(0)
-except Exception:
-    sys.exit(1)
-" "$TMP_DECODED" 2>/dev/null || true
+            python3 - "$TMP_DECODED" <<'PY' || true
+          import base64
+          import os
+          import re
+          import sys
 
-            if is_valid_keystore "$TMP_DECODED"; then
-              echo "Priority 1: DEBUG_KEYSTORE_BASE64 secret successfully validated and restored."
-              cp "$TMP_DECODED" "$GLOBAL_KEYSTORE"
-              cp "$TMP_DECODED" "$LOCAL_KEYSTORE"
-              KEYSTORE_SOURCE="GitHub Secret (DEBUG_KEYSTORE_BASE64)"
-              SECRET_RESTORED=true
-            else
-              echo "::warning::DEBUG_KEYSTORE_BASE64 secret is empty, invalid Base64, or corrupted! Falling back to cached, local, or newly generated keystore."
-            fi
+          secret = os.environ.get("DEBUG_KEYSTORE_SECRET", "").strip()
+          cleaned = re.sub(r"[^A-Za-z0-9+/=]", "", secret)
+
+          try:
+              if len(cleaned) < 64:
+                  raise ValueError("Secret is too short")
+              data = base64.b64decode(cleaned, validate=True)
+              if len(data) < 100:
+                  raise ValueError("Decoded keystore is too small")
+              with open(sys.argv[1], "wb") as output:
+                  output.write(data)
+          except Exception:
+              sys.exit(1)
+          PY
+              if is_valid_keystore "$TMP_DECODED"; then
+                echo "Priority 1: Valid GitHub secret keystore restored."
+                cp "$TMP_DECODED" "$GLOBAL_KEYSTORE"
+                cp "$TMP_DECODED" "$LOCAL_KEYSTORE"
+                KEYSTORE_SOURCE="GitHub Secret (DEBUG_KEYSTORE_BASE64)"
+                SECRET_RESTORED=true
+              else
+                echo "::warning::DEBUG_KEYSTORE_BASE64 did not contain a valid debug keystore."
+              fi
             rm -f "$TMP_DECODED"
           fi
 
           if [ "$SECRET_RESTORED" != "true" ]; then
             if is_valid_keystore "$GLOBAL_KEYSTORE"; then
-              echo "Priority 2: Using valid persistent debug keystore from $GLOBAL_KEYSTORE (restored from Actions cache)..."
+              echo "Priority 2: Using cached persistent debug keystore."
               cp "$GLOBAL_KEYSTORE" "$LOCAL_KEYSTORE"
-              KEYSTORE_SOURCE="GitHub Actions Cache ($GLOBAL_KEYSTORE)"
+              KEYSTORE_SOURCE="GitHub Actions Cache"
             elif is_valid_keystore "$LOCAL_KEYSTORE"; then
-              echo "Priority 3: Using valid persistent debug keystore from repository root ($LOCAL_KEYSTORE)..."
+              echo "Priority 3: Using valid debug.keystore from repository workspace."
               cp "$LOCAL_KEYSTORE" "$GLOBAL_KEYSTORE"
-              KEYSTORE_SOURCE="Repository workspace ($LOCAL_KEYSTORE)"
+              KEYSTORE_SOURCE="Repository workspace"
             elif [ -f "./debug.keystore.base64" ]; then
               echo "Checking repository debug.keystore.base64 file..."
               TMP_FILE_DECODED="$RUNNER_TEMP/file_keystore.tmp"
               rm -f "$TMP_FILE_DECODED"
 
-              python3 -c "
-import base64, re, sys
-try:
-    content = open('./debug.keystore.base64').read().strip()
-    cleaned = re.sub(r'[^A-Za-z0-9+/=]', '', content)
-    data = base64.b64decode(cleaned)
-    with open(sys.argv[1], 'wb') as f:
-        f.write(data)
-    sys.exit(0)
-except Exception:
-    sys.exit(1)
-" "$TMP_FILE_DECODED" 2>/dev/null || true
+              python3 - "$TMP_FILE_DECODED" <<'PY' || true
+          import base64
+          import re
+          import sys
 
+          try:
+              with open("./debug.keystore.base64", "r", encoding="utf-8") as source:
+                  content = source.read().strip()
+              cleaned = re.sub(r"[^A-Za-z0-9+/=]", "", content)
+              data = base64.b64decode(cleaned, validate=True)
+              if len(data) < 100:
+                  raise ValueError("Decoded keystore is too small")
+              with open(sys.argv[1], "wb") as output:
+                  output.write(data)
+          except Exception:
+              sys.exit(1)
+          PY
               if is_valid_keystore "$TMP_FILE_DECODED"; then
-                echo "Priority 4: Restored persistent debug keystore from repository debug.keystore.base64 file."
-                cp "$TMP_FILE_DECODED" "$GLOBAL_KEYSTORE"
-                cp "$TMP_FILE_DECODED" "$LOCAL_KEYSTORE"
-                KEYSTORE_SOURCE="Repository file (debug.keystore.base64)"
-              fi
+                  echo "Priority 4: Restored keystore from repository Base64 file."
+                  cp "$TMP_FILE_DECODED" "$GLOBAL_KEYSTORE"
+                  cp "$TMP_FILE_DECODED" "$LOCAL_KEYSTORE"
+                  KEYSTORE_SOURCE="Repository file (debug.keystore.base64)"
+                fi
               rm -f "$TMP_FILE_DECODED"
             fi
           fi
 
           if ! is_valid_keystore "$LOCAL_KEYSTORE"; then
-            echo "Priority 5: No valid secret, cache, or existing keystore found. Generating persistent debug keystore once..."
+            echo "Priority 5: No valid existing keystore found. Generating a new debug keystore."
             keytool -genkeypair -v \
               -keystore "$LOCAL_KEYSTORE" \
               -alias androiddebugkey \
@@ -177,68 +184,50 @@ except Exception:
               -keysize 2048 \
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
+
             cp "$LOCAL_KEYSTORE" "$GLOBAL_KEYSTORE"
-            KEYSTORE_SOURCE="Generated on this run (cached for future runs)"
+            KEYSTORE_SOURCE="Generated on this run (saved to Actions cache)"
 
             mkdir -p "$RUNNER_TEMP/generated-keystore"
             base64 -w 0 "$LOCAL_KEYSTORE" > "$RUNNER_TEMP/generated-keystore/debug.keystore.base64"
             echo "generated_new_keystore=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::A new persistent debug keystore was generated. It has been cached for future workflow runs. For permanent permanence across cache evictions, save the generated debug.keystore.base64 as a repository secret (DEBUG_KEYSTORE_BASE64)."
+            echo "::warning::A new debug keystore was generated. Download the generated-debug-keystore-base64 artifact and save its contents as the DEBUG_KEYSTORE_BASE64 repository secret to preserve the signing identity if the Actions cache is ever evicted."
+          else
+            echo "generated_new_keystore=false" >> "$GITHUB_OUTPUT"
           fi
 
           echo "keystore_source=$KEYSTORE_SOURCE" >> "$GITHUB_OUTPUT"
 
           if ! is_valid_keystore "$LOCAL_KEYSTORE" || ! is_valid_keystore "$GLOBAL_KEYSTORE"; then
-            echo "Error: Keystore at $LOCAL_KEYSTORE or $GLOBAL_KEYSTORE is invalid."
+            echo "::error::The configured debug keystore is invalid."
             exit 1
           fi
 
-          echo "=== Verified Gradle Debug Signing Configuration Match ==="
-          echo "Gradle app/build.gradle.kts configuration: storeFile = file('\${rootDir}/debug.keystore')"
-          echo "Verified: $LOCAL_KEYSTORE is present, non-empty, and valid for alias androiddebugkey."
-
           echo "=== Reading Keystore Certificate Fingerprints ==="
-          KEY_INFO=$(keytool -list -v -keystore "$GLOBAL_KEYSTORE" -alias androiddebugkey -storepass android)
-          RAW_KEY_SHA1=$(echo "$KEY_INFO" | grep -i "SHA1:" | head -n 1 | awk '{print $2}')
-          RAW_KEY_SHA256=$(echo "$KEY_INFO" | grep -i "SHA256:" | head -n 1 | awk '{print $2}')
+          KEY_INFO="$(keytool -list -v -keystore "$GLOBAL_KEYSTORE" -alias androiddebugkey -storepass android)"
+          RAW_KEY_SHA1="$(printf '%s\n' "$KEY_INFO" | grep -i 'SHA1:' | head -n 1 | awk '{print $2}')"
+          RAW_KEY_SHA256="$(printf '%s\n' "$KEY_INFO" | grep -i 'SHA256:' | head -n 1 | awk '{print $2}')"
 
-          KEYSTORE_SHA1=$(echo "$RAW_KEY_SHA1" | tr '[:lower:]' '[:upper:]')
-          KEYSTORE_SHA256=$(echo "$RAW_KEY_SHA256" | tr '[:lower:]' '[:upper:]')
+          KEYSTORE_SHA1="$(printf '%s' "$RAW_KEY_SHA1" | tr '[:lower:]' '[:upper:]')"
+          KEYSTORE_SHA256="$(printf '%s' "$RAW_KEY_SHA256" | tr '[:lower:]' '[:upper:]')"
+
+          if [ -z "$KEYSTORE_SHA1" ] || [ -z "$KEYSTORE_SHA256" ]; then
+            echo "::error::Could not read keystore SHA fingerprints."
+            exit 1
+          fi
 
           echo "Persistent Keystore SHA-1:   $KEYSTORE_SHA1"
           echo "Persistent Keystore SHA-256: $KEYSTORE_SHA256"
-
           echo "keystore_sha1=$KEYSTORE_SHA1" >> "$GITHUB_OUTPUT"
           echo "keystore_sha256=$KEYSTORE_SHA256" >> "$GITHUB_OUTPUT"
 
-          # Confirm both global and local keystores are identical
-          GLOBAL_MD5=$(md5sum "$GLOBAL_KEYSTORE" | awk '{print $1}')
-          LOCAL_MD5=$(md5sum "$LOCAL_KEYSTORE" | awk '{print $1}')
+          GLOBAL_MD5="$(md5sum "$GLOBAL_KEYSTORE" | awk '{print $1}')"
+          LOCAL_MD5="$(md5sum "$LOCAL_KEYSTORE" | awk '{print $1}')"
           if [ "$GLOBAL_MD5" != "$LOCAL_MD5" ]; then
-            echo "Error: Keystores at $GLOBAL_KEYSTORE and $LOCAL_KEYSTORE do not match!"
+            echo "::error::Global and local debug keystores do not match."
             exit 1
           fi
-          echo "Confirmed: $GLOBAL_KEYSTORE and $LOCAL_KEYSTORE are identical ($GLOBAL_MD5)."
-
-          # Ensure Android SDK licenses are accepted and Platform 36 & 36.1 are installed with sudo permissions
-          if [ -n "$ANDROID_HOME" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-            echo "Granting permissions and accepting Android SDK licenses..."
-            sudo mkdir -p "$ANDROID_HOME/licenses"
-            sudo chmod -R 777 "$ANDROID_HOME/licenses" 2>/dev/null || true
-            printf "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n84831b9409646a578e44049624e397e46db77429" | sudo tee "$ANDROID_HOME/licenses/android-sdk-license" > /dev/null
-            printf "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n84831b9409646a578e44049624e397e46db77429" | sudo tee "$ANDROID_HOME/licenses/android-sdk-preview-license" > /dev/null
-            echo "y" | sudo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
-
-            echo "Installing required Android SDK platforms (36, 36.1) and build-tools (36.0.0)..."
-            sudo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "platforms;android-36.1" "build-tools;36.0.0" || true
-
-            if [ -d "$ANDROID_HOME/platforms/android-36" ] && [ ! -d "$ANDROID_HOME/platforms/android-36.1" ]; then
-              echo "Synthesizing android-36.1 from android-36..."
-              sudo cp -r "$ANDROID_HOME/platforms/android-36" "$ANDROID_HOME/platforms/android-36.1"
-              sudo sed -i 's/AndroidVersion.ApiLevel=36/AndroidVersion.ApiLevel=36.1/' "$ANDROID_HOME/platforms/android-36.1/source.properties" 2>/dev/null || true
-            fi
-            sudo chmod -R 777 "$ANDROID_HOME/platforms" 2>/dev/null || true
-          fi
+          echo "Verified: global and local debug keystores are identical."
 
       - name: Backup newly generated keystore artifact
         if: steps.keystore.outputs.generated_new_keystore == 'true'
@@ -249,122 +238,134 @@ except Exception:
           retention-days: 7
 
       - name: Verify or restore google-services.json
+        shell: bash
         env:
           GOOGLE_SERVICES_JSON_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
+          set -euo pipefail
           echo "=== Checking google-services.json ==="
+
+          mkdir -p app
           if [ -f "app/google-services.json" ]; then
             echo "app/google-services.json exists in repository."
-          elif [ -n "$GOOGLE_SERVICES_JSON_SECRET" ]; then
-            echo "Restoring app/google-services.json from GOOGLE_SERVICES_JSON secret..."
-            echo "$GOOGLE_SERVICES_JSON_SECRET" > app/google-services.json
-            echo "app/google-services.json successfully restored from secret."
+          elif [ -n "${GOOGLE_SERVICES_JSON_SECRET:-}" ]; then
+            echo "Restoring app/google-services.json from repository secret..."
+            printf '%s' "$GOOGLE_SERVICES_JSON_SECRET" > app/google-services.json
           else
-            echo "::error::app/google-services.json is missing and GOOGLE_SERVICES_JSON secret is not set!"
-            echo "Google Sign-In and Firebase Authentication require a valid google-services.json file to build."
-            echo "Please do one of the following:"
-            echo "1. Commit app/google-services.json to your Git repository, OR"
-            echo "2. Add a repository secret named GOOGLE_SERVICES_JSON in your GitHub repository Settings -> Secrets and variables -> Actions containing the contents of google-services.json."
+            echo "::error::app/google-services.json is missing and GOOGLE_SERVICES_JSON secret is not set."
             exit 1
           fi
 
-          # Validate that the JSON contains the required web OAuth client ID
-          if ! grep -q "apps.googleusercontent.com" app/google-services.json; then
-            echo "::error::app/google-services.json does not contain any OAuth client IDs (apps.googleusercontent.com). Google Sign-In will fail."
-            exit 1
-          fi
-          echo "Verified app/google-services.json contains OAuth configuration."
+          python3 - <<'PY'
+          import json
+          import sys
+
+          try:
+              with open("app/google-services.json", "r", encoding="utf-8") as source:
+                  config = json.load(source)
+              clients = config.get("client", [])
+              oauth_ids = []
+              for client in clients:
+                  for oauth in client.get("oauth_client", []):
+                      client_id = oauth.get("client_id", "")
+                      if client_id.endswith(".apps.googleusercontent.com"):
+                          oauth_ids.append(client_id)
+              if not oauth_ids:
+                  raise ValueError("No Google OAuth client ID ending in apps.googleusercontent.com was found")
+              print("Verified: google-services.json is valid JSON and contains a Google OAuth client ID.")
+          except Exception as error:
+              print(f"::error::Invalid google-services.json: {error}")
+              sys.exit(1)
+          PY
 
       - name: Build the debug APK
+        shell: bash
         env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx3072m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC' -Dorg.gradle.workers.max=2 -Dorg.gradle.configuration-cache=false -Dfile.encoding=UTF-8"
+          GRADLE_OPTS: "-Xmx3072m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC -Dorg.gradle.workers.max=2 -Dorg.gradle.configuration-cache=false -Dfile.encoding=UTF-8"
         run: |
-          echo "=== Configuring Runner Memory ==="
-          # Configure 4GB swap space on the runner to prevent out-of-memory crashes during Kotlin compilation
-          sudo fallocate -l 4G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096 2>/dev/null || true
-          if [ -f /swapfile ]; then
-            sudo chmod 600 /swapfile
-            sudo mkswap /swapfile >/dev/null 2>&1 || true
-            sudo swapon /swapfile >/dev/null 2>&1 || true
-          fi
+          set -euo pipefail
+          echo "=== Runner Memory ==="
           free -h
 
           echo "=== Building Debug APK ==="
-          gradle :app:assembleDebug --stacktrace
+          gradle --version
+          gradle :app:assembleDebug --stacktrace --no-daemon
 
       - name: Verify APK signing certificate and integrity
         id: verify_apk
+        shell: bash
+        env:
+          EXPECTED_KEYSTORE_SHA1: ${{ steps.keystore.outputs.keystore_sha1 }}
+          EXPECTED_KEYSTORE_SHA256: ${{ steps.keystore.outputs.keystore_sha256 }}
         run: |
-          echo "=== Verifying Debug APK Binary ==="
+          set -euo pipefail
           EXPECTED_APK="app/build/outputs/apk/debug/app-debug.apk"
 
-          if [ ! -f "$EXPECTED_APK" ] || [ ! -s "$EXPECTED_APK" ]; then
-            echo "Error: Expected APK $EXPECTED_APK does not exist or is empty."
+          if [ ! -s "$EXPECTED_APK" ]; then
+            echo "::error::Expected APK is missing or empty: $EXPECTED_APK"
             exit 1
           fi
 
-          APK_SIZE=$(stat -c%s "$EXPECTED_APK")
-          echo "Verified expected debug APK: $EXPECTED_APK ($APK_SIZE bytes)"
+          APK_SIZE="$(stat -c%s "$EXPECTED_APK")"
+          echo "Verified APK exists: $EXPECTED_APK ($APK_SIZE bytes)"
 
-          echo "=== Verifying Actual APK Signing Certificate ==="
-          APKSIGNER=$(which apksigner 2>/dev/null || find "${ANDROID_HOME:-/opt/android/sdk}/build-tools" -name "apksigner" 2>/dev/null | sort -V | tail -n 1 || find / -name "apksigner" 2>/dev/null | head -n 1)
+          APKSIGNER="$(find "${ANDROID_HOME:-/opt/android/sdk}/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -n 1 || true)"
+          if [ -z "$APKSIGNER" ]; then
+            APKSIGNER="$(command -v apksigner || true)"
+          fi
 
           if [ -n "$APKSIGNER" ] && [ -x "$APKSIGNER" ]; then
-            echo "Using apksigner: $APKSIGNER"
-            CERT_OUTPUT=$("$APKSIGNER" verify --print-certs -v "$EXPECTED_APK")
-            RAW_SHA1=$(echo "$CERT_OUTPUT" | grep -i "certificate SHA-1 digest:" | head -n 1 | awk '{print $NF}')
-            RAW_SHA256=$(echo "$CERT_OUTPUT" | grep -i "certificate SHA-256 digest:" | head -n 1 | awk '{print $NF}')
-            APK_SHA1=$(echo "$RAW_SHA1" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g;s/:$//')
-            APK_SHA256=$(echo "$RAW_SHA256" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g;s/:$//')
+            CERT_OUTPUT="$("$APKSIGNER" verify --print-certs -v "$EXPECTED_APK")"
+            RAW_SHA1="$(printf '%s\n' "$CERT_OUTPUT" | grep -i 'certificate SHA-1 digest:' | head -n 1 | awk '{print $NF}')"
+            RAW_SHA256="$(printf '%s\n' "$CERT_OUTPUT" | grep -i 'certificate SHA-256 digest:' | head -n 1 | awk '{print $NF}')"
+            APK_SHA1="$(printf '%s' "$RAW_SHA1" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g;s/:$//')"
+            APK_SHA256="$(printf '%s' "$RAW_SHA256" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g;s/:$//')"
           else
-            echo "apksigner not found; extracting certificate using keytool fallback..."
-            APK_SHA1=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -alias androiddebugkey -storepass android | grep -i "SHA1:" | head -n 1 | awk '{print $2}' | tr '[:lower:]' '[:upper:]')
-            APK_SHA256=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -alias androiddebugkey -storepass android | grep -i "SHA256:" | head -n 1 | awk '{print $2}' | tr '[:lower:]' '[:upper:]')
+            echo "::error::apksigner was not found; cannot independently verify the APK signing certificate."
+            exit 1
           fi
 
           if [ -z "$APK_SHA1" ] || [ -z "$APK_SHA256" ]; then
-            echo "Error: Could not extract signing certificate fingerprints from APK."
+            echo "::error::Could not extract APK signing certificate fingerprints."
             exit 1
           fi
 
-          echo "Actual APK Certificate SHA-1:   $APK_SHA1"
-          echo "Actual APK Certificate SHA-256: $APK_SHA256"
+          echo "APK Certificate SHA-1:   $APK_SHA1"
+          echo "APK Certificate SHA-256: $APK_SHA256"
           echo "apk_sha1=$APK_SHA1" >> "$GITHUB_OUTPUT"
           echo "apk_sha256=$APK_SHA256" >> "$GITHUB_OUTPUT"
 
-          echo "=== Comparing APK Certificate with Persistent Keystore ==="
-          KEYSTORE_SHA1="${{ steps.keystore.outputs.keystore_sha1 }}"
-          KEYSTORE_SHA256="${{ steps.keystore.outputs.keystore_sha256 }}"
-
-          echo "Persistent Keystore SHA-1: $KEYSTORE_SHA1"
-          echo "Actual APK SHA-1:          $APK_SHA1"
-
-          if [ "$APK_SHA1" != "$KEYSTORE_SHA1" ]; then
-            echo "::error::APK signing certificate mismatch! The APK was signed with $APK_SHA1, but the configured keystore has $KEYSTORE_SHA1."
+          if [ "$APK_SHA1" != "$EXPECTED_KEYSTORE_SHA1" ]; then
+            echo "::error::APK signing certificate does not match the persistent debug keystore."
             exit 1
           fi
-          echo "Verified: The APK certificate matches the persistent keystore."
+          echo "Verified: APK certificate matches the persistent debug keystore."
 
-          echo "=== Checking Firebase Configuration Match ==="
-          CLEAN_SHA1=$(echo "$APK_SHA1" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          CLEAN_SHA1="$(printf '%s' "$APK_SHA1" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           if grep -qi "$CLEAN_SHA1" app/google-services.json; then
-            echo "Verified: Actual APK SHA-1 ($APK_SHA1) is registered in app/google-services.json!"
+            echo "Firebase SHA-1 match found in google-services.json."
             echo "firebase_match=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Actual APK SHA-1 ($APK_SHA1) is NOT registered in app/google-services.json! If Google Sign-In fails with error code 10 (DEVELOPER_ERROR), add this SHA-1 to your Android app in Firebase Console."
+            echo "::warning::This APK SHA-1 is not listed in google-services.json. Google Sign-In may fail with DEVELOPER_ERROR until you add this SHA-1 in Firebase Console."
             echo "firebase_match=false" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "=== Verifying default_web_client_id in APK ==="
-          python3 -c "
-          import zipfile, sys
-          with zipfile.ZipFile('$EXPECTED_APK', 'r') as z:
-              data = z.read('resources.arsc')
-              if b'default_web_client_id' not in data:
-                  print('::error::The generated APK does not contain default_web_client_id in resources.arsc! Google Sign-In will fail at runtime.')
+          python3 - "$EXPECTED_APK" <<'PY'
+          import sys
+          import zipfile
+
+          apk_path = sys.argv[1]
+          try:
+              with zipfile.ZipFile(apk_path, "r") as apk:
+                  resources = apk.read("resources.arsc")
+              if b"default_web_client_id" not in resources:
+                  print("::error::default_web_client_id was not found in APK resources.arsc.")
                   sys.exit(1)
-              print('Verified: default_web_client_id is present in APK resources.arsc.')
-          "
+              print("Verified: default_web_client_id is present in APK resources.")
+          except Exception as error:
+              print(f"::error::Could not inspect APK resources: {error}")
+              sys.exit(1)
+          PY
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
@@ -372,128 +373,63 @@ except Exception:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
 
       - name: Prepare APK release asset
         id: prepare_asset
+        shell: bash
         run: |
-          echo "=== Preparing APK Release Asset ==="
+          set -euo pipefail
           ASSET_DIR="$RUNNER_TEMP/release-asset-build"
           mkdir -p "$ASSET_DIR"
 
-          RAW_REPO_NAME="${{ github.repository }}"
-          REPO_NAME=$(echo "$RAW_REPO_NAME" | awk -F '/' '{print $2}' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')
-          ASSET_NAME="${REPO_NAME}-debug-build-${{ github.run_number }}.apk"
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')"
+          ASSET_NAME="${REPO_NAME}-debug-build-${GITHUB_RUN_NUMBER}.apk"
           ASSET_PATH="$ASSET_DIR/$ASSET_NAME"
 
           cp app/build/outputs/apk/debug/app-debug.apk "$ASSET_PATH"
+          test -s "$ASSET_PATH"
 
-          if [ ! -f "$ASSET_PATH" ] || [ ! -s "$ASSET_PATH" ]; then
-            echo "Error: Release asset could not be prepared at $ASSET_PATH"
-            exit 1
-          fi
-
-          echo "Release asset prepared: $ASSET_PATH ($ASSET_NAME)"
           echo "asset_path=$ASSET_PATH" >> "$GITHUB_OUTPUT"
           echo "asset_name=$ASSET_NAME" >> "$GITHUB_OUTPUT"
+          echo "Prepared release asset: $ASSET_NAME"
 
       - name: Publish APK to GitHub Releases
         id: release
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          echo "=== Publishing APK to GitHub Releases ==="
-          gh --version
-
+          set -euo pipefail
           ASSET_PATH="${{ steps.prepare_asset.outputs.asset_path }}"
           ASSET_NAME="${{ steps.prepare_asset.outputs.asset_name }}"
 
-          if [ -z "$ASSET_PATH" ] || [ ! -f "$ASSET_PATH" ] || [ ! -s "$ASSET_PATH" ]; then
-            echo "Error: Release asset is missing or empty at '$ASSET_PATH'."
+          if [ ! -s "$ASSET_PATH" ]; then
+            echo "::error::Release APK asset is missing."
             exit 1
           fi
 
-          case "$ASSET_PATH" in
-            *.apk) ;;
-            *)
-              echo "Error: Asset file is not an .apk: $ASSET_PATH"
-              exit 1
-              ;;
-          esac
-
-          RELEASE_TAG="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
-          RELEASE_TITLE="Debug APK Build #${{ github.run_number }}"
-          TARGET_COMMIT="${{ github.sha }}"
-
-          RELEASE_NOTES=$(cat << 'EOF'
+          RELEASE_TAG="debug-apk-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          RELEASE_TITLE="Debug APK Build #${GITHUB_RUN_NUMBER}"
+          RELEASE_NOTES="$(cat <<EOF
           ### Debug APK Build Details
 
-          - **Build Type**: Automatically generated debug APK
-          - **Built by**: GitHub Actions
-          - **GitHub Actions Run Number**: ${{ github.run_number }}
-          - **GitHub Actions Run Attempt**: ${{ github.run_attempt }}
-          - **Source Commit SHA**: ${{ github.sha }}
+          - Build type: Debug APK
+          - Repository: ${GITHUB_REPOSITORY}
+          - Branch: ${GITHUB_REF_NAME}
+          - Commit: ${GITHUB_SHA}
+          - Workflow run: ${GITHUB_RUN_NUMBER}
+          - Run attempt: ${GITHUB_RUN_ATTEMPT}
+          - APK: ${ASSET_NAME}
 
-          ---
-
-          > **Notice**: This APK is intended for testing and development purposes. It is not a Play Store production release and is signed only with a temporary debug keystore.
+          This APK is intended for testing. It is not a Play Store production release.
           EOF
-          )
+          )"
 
-          echo "Creating release $RELEASE_TAG for commit $TARGET_COMMIT with asset $ASSET_PATH..."
-          gh release create "$RELEASE_TAG" "$ASSET_PATH" \
+          gh release create "$RELEASE_TAG" "$ASSET_PATH#$ASSET_NAME" \
             --title "$RELEASE_TITLE" \
-            --notes "$RELEASE_NOTES" \
-            --target "$TARGET_COMMIT" \
-            --latest
+            --notes "$RELEASE_NOTES"
 
-          echo "Release creation completed successfully."
-
-      - name: Report APK download result
-        if: always()
-        run: |
-          echo "=== Reporting APK Download Result ==="
-          RELEASE_OUTCOME="${{ steps.release.outcome }}"
-          RELEASE_TAG="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
-          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
-
-          ACTUAL_SHA1="${{ steps.verify_apk.outputs.apk_sha1 }}"
-          ACTUAL_SHA256="${{ steps.verify_apk.outputs.apk_sha256 }}"
-          FIREBASE_MATCH="${{ steps.verify_apk.outputs.firebase_match }}"
-          KEYSTORE_SOURCE="${{ steps.keystore.outputs.keystore_source }}"
-
-          echo "## Android Debug APK Build & Release Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Workflow Run**: #${{ github.run_number }} (Attempt #${{ github.run_attempt }})" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Target Commit**: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Keystore Source**: $KEYSTORE_SOURCE" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Verified APK Signing Certificate**:" >> "$GITHUB_STEP_SUMMARY"
-          if [ -n "$ACTUAL_SHA1" ]; then
-            echo "  - **SHA-1**: \`$ACTUAL_SHA1\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "  - **SHA-256**: \`$ACTUAL_SHA256\`" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "  - **SHA-1**: (Build failed before APK verification)" >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-          if [ "$FIREBASE_MATCH" = "true" ]; then
-            echo "- **Firebase Console Configuration**: :white_check_mark: Certificate matches registered fingerprints in google-services.json" >> "$GITHUB_STEP_SUMMARY"
-          elif [ "$FIREBASE_MATCH" = "false" ]; then
-            echo "- **Firebase Console Configuration**: :warning: **Action Required!** Register \`$ACTUAL_SHA1\` under your Android app in Firebase Console to prevent Google Sign-In error 10." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
-            echo "- **Actions Artifact**: \`app-debug-apk\` (available under workflow run summary)" >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-          if [ "$RELEASE_OUTCOME" = "success" ]; then
-            RELEASE_URL="$REPO_URL/releases/tag/$RELEASE_TAG"
-            echo "Release published successfully: $RELEASE_URL"
-            echo "- **Release Status**: Published successfully" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Release Tag**: \`$RELEASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Release Page**: [$RELEASE_URL]($RELEASE_URL)" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Direct Download**: Available under the Release Assets section at $RELEASE_URL" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::warning::GitHub Release creation did not complete successfully (outcome: $RELEASE_OUTCOME). The debug APK is preserved as Actions artifact 'app-debug-apk'."
-            echo "- **Release Status**: :warning: Release creation did not complete ($RELEASE_OUTCOME)." >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Artifact Download**: The debug APK is ready and uploaded as the \`app-debug-apk\` artifact. Download it directly from the Summary tab of this workflow run." >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Release Permissions Tip**: If release failed with HTTP 403, enable write access in GitHub: Repository Settings > Actions > General > Workflow permissions > 'Read and write permissions'." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "Published release: $RELEASE_TAG"
+          
