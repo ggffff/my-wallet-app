@@ -56,14 +56,10 @@ jobs:
           LOCAL_KEYSTORE="$GITHUB_WORKSPACE/debug.keystore"
           TEMP_KEYSTORE="$RUNNER_TEMP/debug-keystore.tmp"
 
-          # These are the two SHA-1 fingerprints the user supplied as
-          # registered in Firebase. Either one is accepted.
-          FIREBASE_SHA1_1="CE:C8:04:28:58:3D:82:05:D6:3A:9F:D0:55:DB:E2:0D:6C:E6:C1:D3"
-          FIREBASE_SHA1_2="7A:61:B1:CB:69:C4:44:35:F6:B7:62:40:85:39:01:11:36:B2:74:AC"
-
-          # User-supplied SHA-256. It is checked and reported, but is not
-          # paired to a particular SHA-1 unless confirmed from the same cert.
-          FIREBASE_SHA256_1="99:25:B4:22:AC:B6:F3:2D:20:36:DE:29:C0:DE:EC:6D:C8:97:CB:79:D3:6C:6A:7B:26:41:D4:6A:64:AC:0E:38"
+          # SHA fingerprints for the newly generated permanent My Wallet key.
+          FIREBASE_SHA1_1="B0:5C:6B:8D:6A:17:71:D6:6C:59:5B:F5:C4:A6:AD:57:88:15:E5:99"
+          FIREBASE_SHA1_2=""
+          FIREBASE_SHA256_1="3D:BF:32:AA:F5:B9:91:5C:6A:4B:EB:EB:96:B8:DF:16:82:29:13:6E:CD:51:E4:56:82:9F:82:54:79:67:B3:BC"
 
           normalize_fp() {
             printf '%s' "$1" | tr -d ':' | tr '[:lower:]' '[:upper:]'
@@ -140,12 +136,10 @@ jobs:
           fi
 
           KEY_SHA1_NORMALIZED="$(normalize_fp "$KEY_SHA1")"
-          if [ "$KEY_SHA1_NORMALIZED" != "$(normalize_fp "$FIREBASE_SHA1_1")" ] &&
-             [ "$KEY_SHA1_NORMALIZED" != "$(normalize_fp "$FIREBASE_SHA1_2")" ]; then
-            echo "::error::Restored keystore SHA-1 is not one of the two Firebase fingerprints supplied."
+          if [ "$KEY_SHA1_NORMALIZED" != "$(normalize_fp "$FIREBASE_SHA1_1")" ]; then
+            echo "::error::Restored keystore SHA-1 does not match the new permanent My Wallet fingerprint."
             echo "Actual SHA-1: $KEY_SHA1"
-            echo "Expected SHA-1 #1: $FIREBASE_SHA1_1"
-            echo "Expected SHA-1 #2: $FIREBASE_SHA1_2"
+            echo "Expected SHA-1: $FIREBASE_SHA1_1"
             echo "Build stopped to prevent producing an APK signed by the wrong key."
             exit 1
           fi
