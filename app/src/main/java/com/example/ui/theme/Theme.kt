@@ -33,13 +33,13 @@ enum class AppTheme(
 ) {
     CYBER_NEON(
         id = "cyber_neon",
-        displayName = "Cyber Neon",
-        subtitle = "Deep Black • Blue & Pink Glow",
+        displayName = "Modern Dark",
+        subtitle = "Clean Slate • Royal Blue Accents",
         isDark = true,
-        primaryColor = PremiumBlue,
-        secondaryColor = PremiumPink,
-        glowColor = GlowBlue,
-        previewBg = DeepBlack
+        primaryColor = Color(0xFF3B82F6),
+        secondaryColor = Color(0xFF38BDF8),
+        glowColor = Color(0xFF60A5FA),
+        previewBg = Color(0xFF0B1120)
     ),
     MIDNIGHT_EMERALD(
         id = "midnight_emerald",
@@ -102,27 +102,27 @@ enum class AppTheme(
 
 val LocalAppTheme = compositionLocalOf { AppTheme.CYBER_NEON }
 
-// 1. Cyber Neon Color Scheme
+// 1. Clean Modern Dark Color Scheme (Formerly Cyber Neon)
 val CyberNeonColorScheme = darkColorScheme(
-    primary = PremiumBlue,
+    primary = Color(0xFF3B82F6),
     onPrimary = PureWhite,
-    primaryContainer = SurfaceElevatedNavy,
-    onPrimaryContainer = Color(0xFFD1E4FF),
-    secondary = PremiumPink,
+    primaryContainer = Color(0xFF1E293B),
+    onPrimaryContainer = Color(0xFFDBEAFE),
+    secondary = Color(0xFF38BDF8),
     onSecondary = PureWhite,
-    secondaryContainer = Color(0xFF3B122D),
-    onSecondaryContainer = GlowPink,
+    secondaryContainer = Color(0xFF0F172A),
+    onSecondaryContainer = Color(0xFFBAE6FD),
     tertiary = IncomeGreen,
     onTertiary = PureWhite,
     error = ExpenseRed,
     onError = PureWhite,
-    background = DeepBlack,
+    background = Color(0xFF0B1120),
     onBackground = PureWhite,
-    surface = DarkNavy,
+    surface = Color(0xFF131D31),
     onSurface = PureWhite,
-    surfaceVariant = SurfaceNavy,
+    surfaceVariant = Color(0xFF1E293B),
     onSurfaceVariant = Color(0xFF94A3B8),
-    outline = BorderNavy
+    outline = Color(0xFF334155)
 )
 
 // Backwards compatibility alias

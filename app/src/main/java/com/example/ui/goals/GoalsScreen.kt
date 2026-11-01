@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -117,19 +120,13 @@ fun GoalsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(24.dp)
                     ) {
-                        Box(
+                        Image(
+                            painter = painterResource(id = R.drawable.img_quick_savings_goal),
+                            contentDescription = "Saving Goals",
                             modifier = Modifier
-                                .size(70.dp)
-                                .background(BrandPrimary.copy(alpha = 0.15f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Savings,
-                                contentDescription = null,
-                                tint = BrandPrimary,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
+                                .size(84.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                        )
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
                             text = appString(StringKeys.NO_GOALS),

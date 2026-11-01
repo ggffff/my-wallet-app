@@ -261,13 +261,38 @@ fun MainWalletApp(
     val goals by remember(repository) { repository.observeGoals() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val bills by remember(repository) { repository.observeBills() }.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    LaunchedEffect(userProfile?.themeMode) {
-        userProfile?.themeMode?.let { mode ->
-            if (mode.isNotBlank()) {
-                val theme = AppTheme.fromId(mode)
-                if (theme != currentTheme) {
-                    onSelectTheme(theme)
-                }
+    val prefs = remember { context.getSharedPreferences("wallet_prefs", Context.MODE_PRIVATE) }
+
+    // Robust theme persistence: prioritize saved preference and synchronize to Firestore so reloads never revert
+    LaunchedEffect(userProfile) {
+        val remoteTheme = userProfile?.themeMode
+        val localThemeId = prefs.getString("selected_theme", null)
+        if (localThemeId != null) {
+            val localTheme = AppTheme.fromId(localThemeId)
+            if (currentTheme != localTheme) {
+                onSelectTheme(localTheme)
+            }
+            if (remoteTheme != localTheme.id && userProfile != null) {
+                try {
+                    repository.saveUserProfile(userProfile!!.copy(themeMode = localTheme.id))
+                } catch (_: Exception) {}
+            }
+        } else if (!remoteTheme.isNullOrBlank()) {
+            val remote = AppTheme.fromId(remoteTheme)
+            onSelectTheme(remote)
+            prefs.edit().putString("selected_theme", remote.id).apply()
+        }
+    }
+
+    val onSelectThemeAndPersist: (AppTheme) -> Unit = { theme ->
+        onSelectTheme(theme)
+        prefs.edit().putString("selected_theme", theme.id).apply()
+        coroutineScope.launch {
+            try {
+                val current = userProfile ?: UserProfile()
+                repository.saveUserProfile(current.copy(themeMode = theme.id))
+            } catch (t: Throwable) {
+                android.util.Log.w("MainActivity", "Failed to sync theme to Firestore", t)
             }
         }
     }
@@ -344,7 +369,7 @@ fun MainWalletApp(
                 // 4 Core Tabs with modern Pill Capsule Indicator design:
                 // Home, Accounts, Reports, Settings
                 NavigationBar(
-                    containerColor = Color(0xFF080E1C),
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.testTag("bottom_navigation_bar")
                 ) {
@@ -479,7 +504,7 @@ fun MainWalletApp(
                         currentTheme = currentTheme,
                         currentLanguage = appLanguage,
                         onToggleDarkTheme = onToggleDarkTheme,
-                        onSelectTheme = onSelectTheme,
+                        onSelectTheme = onSelectThemeAndPersist,
                         onToggleLanguage = onToggleLanguage,
                         onSaveProfile = { name, avatar ->
                             coroutineScope.launch {
@@ -634,8 +659,8 @@ private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
     glowColor: Color
 ) {
     val isDark = LocalAppTheme.current.isDark
-    val activePillColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.30f) else Color(0xFFDCEBFE)
-    val activeIconTint = if (isDark) Color(0xFF00F0FF) else Color(0xFF0284C7)
+    val activePillColor = if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color(0xFFDBEAFE)
+    val activeIconTint = if (isDark) Color(0xFF60A5FA) else Color(0xFF1D4ED8)
     val inactiveTint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
 
     NavigationBarItem(
@@ -649,7 +674,6 @@ private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
                         .width(64.dp)
                         .height(32.dp)
                         .background(activePillColor, shape = RoundedCornerShape(16.dp))
-                        .border(1.dp, Color(0xFF00F0FF).copy(alpha = 0.65f), RoundedCornerShape(16.dp))
                 ) {
                     Icon(
                         imageVector = icon,

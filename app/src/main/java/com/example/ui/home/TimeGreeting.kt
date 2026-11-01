@@ -279,17 +279,11 @@ fun TimeBasedGreetingHeader(
                     .size(46.dp)
                     .clip(CircleShape)
                     .border(
-                        width = 2.dp,
-                        brush = Brush.linearGradient(
-                            listOf(
-                                Color(0xFF00F0FF),
-                                Color(0xFF0070F3),
-                                Color(0xFF00E5FF)
-                            )
-                        ),
+                        width = 1.5.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                         shape = CircleShape
                     )
-                    .background(Color(0xFF0F1E3A))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .bounceClick { onOpenSettings() }
                     .testTag("profile_avatar_button"),
                 contentAlignment = Alignment.Center
@@ -307,8 +301,8 @@ fun TimeBasedGreetingHeader(
                     val initialLetter = (userProfile?.displayName?.take(1)?.uppercase()?.ifBlank { "N" } ?: "N")
                     Text(
                         text = initialLetter,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF00F0FF),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 18.sp
                     )
                 }

@@ -1,7 +1,13 @@
 package com.example.ui.home
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +61,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -70,14 +77,12 @@ import com.example.data.model.TransactionType
 import com.example.data.model.UserProfile
 import com.example.ui.dialogs.UpdateAccountDialog
 import com.example.ui.motion.AnimatedBdtCounter
-import com.example.ui.motion.GlassmorphicCardSheen
 import com.example.ui.motion.bounceClick
-import com.example.ui.motion.neonGlow
 import com.example.ui.motion.staggeredEntrance
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
-import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.PureWhite
+import com.example.util.AppLanguage
 import com.example.util.LocalAppLanguage
 import com.example.util.StringKeys
 import com.example.util.appString
@@ -128,15 +133,7 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF060A14),
-                        Color(0xFF091224),
-                        Color(0xFF060A14)
-                    )
-                )
-            )
+            .background(MaterialTheme.colorScheme.background)
             .testTag("home_screen"),
         contentPadding = PaddingValues(bottom = 90.dp)
     ) {
@@ -150,25 +147,14 @@ fun HomeScreen(
             )
         }
 
-        // 2. Large Net Balance Hero Card (Blue Neon Glassmorphism UI)
+        // 2. Large Net Balance Hero Card (Clean Modern Card - No harsh neon)
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp)
-                    .shadow(18.dp, RoundedCornerShape(26.dp))
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.linearGradient(
-                            listOf(
-                                Color(0xFF00F0FF).copy(alpha = 0.85f),
-                                Color(0xFF0070F3).copy(alpha = 0.35f),
-                                Color(0xFF00F0FF).copy(alpha = 0.65f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(26.dp)
-                    ),
-                shape = RoundedCornerShape(26.dp),
+                    .shadow(4.dp, RoundedCornerShape(24.dp)),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
                 Box(
@@ -177,17 +163,15 @@ fun HomeScreen(
                         .background(
                             Brush.linearGradient(
                                 colors = listOf(
-                                    Color(0xFF0A2255),
-                                    Color(0xFF1345B0),
-                                    Color(0xFF0066E0)
+                                    Color(0xFF1E3A8A),
+                                    Color(0xFF2563EB),
+                                    Color(0xFF1D4ED8)
                                 )
                             )
                         )
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
                         .padding(22.dp)
                 ) {
-                    // Specular light reflection sheen
-                    GlassmorphicCardSheen(modifier = Modifier.matchParentSize())
-
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -213,24 +197,23 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = if (isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                         contentDescription = "Toggle Balance",
-                                        tint = Color(0xFF00F0FF),
+                                        tint = PureWhite,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
 
-                            // Glowing currency glass pill
+                            // Clean currency pill
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0x2600F0FF))
-                                    .border(1.dp, Color(0x4D00F0FF), RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.15f))
                                     .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 Text(
                                     text = "BDT (৳)",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = Color(0xFF00F0FF)
+                                    color = PureWhite
                                 )
                             }
                         }
@@ -252,7 +235,7 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // Total Income and Total Spent Glass Capsules
+                        // Total Income and Total Spent Clean Capsules
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -262,8 +245,8 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0x33060E20))
-                                    .border(1.dp, Color(0x3310B981), RoundedCornerShape(16.dp))
+                                    .background(Color.Black.copy(alpha = 0.20f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                                     .bounceClick(scaleDown = 0.96f) {
                                         onAddTransactionClicked(TransactionType.INCOME)
                                     }
@@ -274,8 +257,7 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(32.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0x3310B981))
-                                            .border(1.dp, Color(0x6610B981), CircleShape),
+                                            .background(IncomeGreen.copy(alpha = 0.25f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -315,8 +297,8 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0x33060E20))
-                                    .border(1.dp, Color(0x33EF4444), RoundedCornerShape(16.dp))
+                                    .background(Color.Black.copy(alpha = 0.20f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                                     .bounceClick(scaleDown = 0.96f) {
                                         onAddTransactionClicked(TransactionType.SPENT)
                                     }
@@ -327,8 +309,7 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(32.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0x33EF4444))
-                                            .border(1.dp, Color(0x66EF4444), CircleShape),
+                                            .background(ExpenseRed.copy(alpha = 0.25f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -368,59 +349,67 @@ fun HomeScreen(
             }
         }
 
-        // 3. Five 3D Glossy Quick Action Icons
-        // MANDATORY: Completely replaced Saving Goals icon with circular glossy electric-blue 3D button,
-        // white archery target concentric rings, and golden dart pointing to bullseye!
+        // 3. Five 3D Quick Action Picture Items
+        // User requested: "Apps Theme And Visual Effects Remove koro, Suggest Pic Gulo Animated dew 2/3ta"
+        // 3 Animated Suggested Pictures:
+        // 1. Saving Goals: Target Breathing Pulse & Micro-aim rotation
+        // 2. AI Tips: Magical Sparkle rotation & shimmer scale
+        // 3. Add Income / Add Spent: Floating bounce vertical bobbing motion
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 18.dp),
+                    .padding(horizontal = 14.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. Add Income: Glossy green 3D circular icon with white downward arrow
+                // Picture 1 (Animated): Add Income (Downward arrow floating bounce)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_add_income,
-                    label = "Add Income",
-                    glowColor = Color(0xFF10B981),
+                    label = if (language == AppLanguage.BANGLA) "আয় যোগ" else "Add Income",
+                    glowColor = IncomeGreen,
                     testTag = "quick_action_add_income",
+                    animType = QuickActionAnimType.BOUNCE_FLOAT,
                     onClick = { onAddTransactionClicked(TransactionType.INCOME) }
                 )
 
-                // 2. Add Spent: Glossy red 3D circular icon with white upward arrow
+                // Add Spent (Floating bounce)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_add_spent,
-                    label = "Add Spent",
-                    glowColor = Color(0xFFEF4444),
+                    label = if (language == AppLanguage.BANGLA) "ব্যয় যোগ" else "Add Spent",
+                    glowColor = ExpenseRed,
                     testTag = "quick_action_add_spent",
+                    animType = QuickActionAnimType.BOUNCE_FLOAT,
                     onClick = { onAddTransactionClicked(TransactionType.SPENT) }
                 )
 
-                // 3. Saving Goals: MANDATORY blue 3D target with concentric rings & golden dart arrow pointing to bullseye
+                // Picture 2 (Animated): Saving Goals (Archery target breathing pulse & dart arrow aim motion)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_savings_goal,
-                    label = "Saving Goals",
-                    glowColor = Color(0xFF00F0FF),
+                    label = if (language == AppLanguage.BANGLA) "সঞ্চয় লক্ষ্য" else "Saving Goals",
+                    glowColor = Color(0xFF2563EB),
                     testTag = "quick_action_saving_goals",
+                    animType = QuickActionAnimType.PULSE_TARGET,
                     onClick = onViewGoalsClicked
                 )
 
-                // 4. Bills & Dues: Glossy blue 3D calendar with a small clock
+                // Bills & Dues (3D calendar "26" with clock icon)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_bills_dues,
-                    label = "Bills & Dues",
-                    glowColor = Color(0xFF38BDF8),
+                    label = if (language == AppLanguage.BANGLA) "বিল ও বকেয়া" else "Bills & Dues",
+                    glowColor = Color(0xFF0284C7),
                     testTag = "quick_action_bills_dues",
+                    animType = QuickActionAnimType.NONE,
                     onClick = onViewBillsClicked
                 )
 
-                // 5. AI Tips: Glossy purple 3D sparkle icon
+                // Picture 3 (Animated): AI Tips (Magical sparkle rotation & scale pulse)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_ai_tips,
-                    label = "AI Tips",
-                    glowColor = Color(0xFFA855F7),
+                    label = if (language == AppLanguage.BANGLA) "এআই টিপস" else "AI Tips",
+                    glowColor = Color(0xFF9333EA),
                     testTag = "quick_action_ai_tips",
+                    animType = QuickActionAnimType.SPARKLE_MAGIC,
                     onClick = onOpenAiAdvisor
                 )
             }
@@ -437,21 +426,11 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 4.dp)
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            listOf(
-                                Color(0xFFFBBF24).copy(alpha = 0.65f),
-                                Color(0xFFF59E0B).copy(alpha = 0.2f),
-                                Color(0xFFFBBF24).copy(alpha = 0.45f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
                     .bounceClick { onViewBillsClicked() },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xCC0E1A34)
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
                 Row(
@@ -463,14 +442,13 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .background(Color(0x33F59E0B), CircleShape)
-                            .border(1.dp, Color(0x66F59E0B), CircleShape),
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.15f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.NotificationsActive,
                             contentDescription = "Bill Alert",
-                            tint = Color(0xFFFBBF24),
+                            tint = Color(0xFFF59E0B),
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -482,20 +460,19 @@ fun HomeScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             ),
-                            color = PureWhite
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Amount: ${formatBdt(billAmount, language)} • Due: $billDueDate",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = Color(0xFF94A3B8)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x26F59E0B))
-                            .border(1.dp, Color(0x66F59E0B), RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.15f))
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -504,7 +481,7 @@ fun HomeScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             ),
-                            color = Color(0xFFFBBF24)
+                            color = Color(0xFFF59E0B)
                         )
                     }
                 }
@@ -524,7 +501,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .size(8.dp)
-                            .background(NeonCyan, CircleShape)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -533,7 +510,7 @@ fun HomeScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         ),
-                        color = PureWhite
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 TextButton(
@@ -543,7 +520,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
-                        tint = NeonCyan,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -551,7 +528,7 @@ fun HomeScreen(
                         text = "Add Account",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = NeonCyan
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -590,11 +567,11 @@ fun HomeScreen(
                 Text(
                     text = appString(StringKeys.RECENT_TRANSACTIONS),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = PureWhite
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 if (transactions.isNotEmpty()) {
                     TextButton(onClick = onViewAllStatementsClicked) {
-                        Text("See All", fontWeight = FontWeight.Bold, color = NeonCyan)
+                        Text("See All", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -606,9 +583,9 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
-                        .border(1.dp, Color(0x3300F0FF), RoundedCornerShape(16.dp)),
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp)),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xCC0E1A34))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier
@@ -619,24 +596,24 @@ fun HomeScreen(
                         Text(
                             text = appString(StringKeys.NO_TRANSACTIONS),
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = PureWhite
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = appString(StringKeys.EMPTY_STATE_HINT),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF94A3B8),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OutlinedButton(
                                 onClick = { onAddTransactionClicked(TransactionType.INCOME) },
-                                modifier = Modifier.border(1.dp, Color(0xFF10B981), RoundedCornerShape(12.dp))
+                                modifier = Modifier.border(1.dp, Color(0xFF10B981).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             ) {
                                 Text("+ Income", color = Color(0xFF10B981))
                             }
                             OutlinedButton(
                                 onClick = { onAddTransactionClicked(TransactionType.SPENT) },
-                                modifier = Modifier.border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
+                                modifier = Modifier.border(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             ) {
                                 Text("- Expense", color = Color(0xFFEF4444))
                             }
@@ -674,8 +651,21 @@ fun HomeScreen(
 }
 
 /**
- * 3D Glossy Quick Action Button component with glowing neon aura,
- * specular rim, and responsive micro-interaction.
+ * Animation modes for Suggested Action Pictures:
+ * 1. PULSE_TARGET: Breathing pulse with subtle dart aim micro-motion for Saving Goals
+ * 2. SPARKLE_MAGIC: Smooth rotation & scale pulse for AI Tips
+ * 3. BOUNCE_FLOAT: Gentle vertical floating bounce for Add Income / Add Spent
+ */
+enum class QuickActionAnimType {
+    NONE,
+    PULSE_TARGET,
+    SPARKLE_MAGIC,
+    BOUNCE_FLOAT
+}
+
+/**
+ * Clean 3D Quick Action Button component with smooth, lively native Compose animations
+ * for the suggested pictures, without tacky neon glow visual effects.
  */
 @Composable
 fun QuickAction3DItem(
@@ -683,8 +673,84 @@ fun QuickAction3DItem(
     label: String,
     glowColor: Color,
     testTag: String,
+    animType: QuickActionAnimType = QuickActionAnimType.NONE,
     onClick: () -> Unit
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "quickActionTransition_$label")
+
+    // Animations depending on animType:
+    val scale = when (animType) {
+        QuickActionAnimType.PULSE_TARGET -> {
+            val s by infiniteTransition.animateFloat(
+                initialValue = 0.95f,
+                targetValue = 1.05f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "targetScale"
+            )
+            s
+        }
+        QuickActionAnimType.SPARKLE_MAGIC -> {
+            val s by infiniteTransition.animateFloat(
+                initialValue = 0.93f,
+                targetValue = 1.07f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1100, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "sparkleScale"
+            )
+            s
+        }
+        else -> 1f
+    }
+
+    val rotation = when (animType) {
+        QuickActionAnimType.PULSE_TARGET -> {
+            val r by infiniteTransition.animateFloat(
+                initialValue = -3f,
+                targetValue = 3f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1600, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "targetRot"
+            )
+            r
+        }
+        QuickActionAnimType.SPARKLE_MAGIC -> {
+            val r by infiniteTransition.animateFloat(
+                initialValue = -8f,
+                targetValue = 8f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1300, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "sparkleRot"
+            )
+            r
+        }
+        else -> 0f
+    }
+
+    val translationY = when (animType) {
+        QuickActionAnimType.BOUNCE_FLOAT -> {
+            val y by infiniteTransition.animateFloat(
+                initialValue = -3.5f,
+                targetValue = 3.5f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1250, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "bounceY"
+            )
+            y
+        }
+        else -> 0f
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -695,41 +761,33 @@ fun QuickAction3DItem(
             modifier = Modifier.size(62.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Ambient neon aura
+            // Subtle, sleek container background
             Box(
                 modifier = Modifier
-                    .size(58.dp)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                glowColor.copy(alpha = 0.40f),
-                                glowColor.copy(alpha = 0.15f),
-                                Color.Transparent
-                            )
-                        ),
-                        CircleShape
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                    .border(
+                        width = 1.dp,
+                        color = glowColor.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(16.dp)
                     )
             )
 
-            // 3D Glossy Button Image
+            // High-fidelity 3D Icon matching user's reference image
             Image(
                 painter = painterResource(id = drawableRes),
                 contentDescription = label,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(54.dp)
-                    .clip(CircleShape)
-                    .border(
-                        width = 1.5.dp,
-                        brush = Brush.linearGradient(
-                            listOf(
-                                glowColor.copy(alpha = 0.85f),
-                                glowColor.copy(alpha = 0.25f),
-                                glowColor.copy(alpha = 0.65f)
-                            )
-                        ),
-                        shape = CircleShape
-                    )
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        rotationZ = rotation
+                        this.translationY = translationY * density
+                    }
+                    .clip(RoundedCornerShape(14.dp))
             )
         }
 
@@ -738,10 +796,10 @@ fun QuickAction3DItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 fontSize = 11.sp
             ),
-            color = PureWhite,
+            color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1
         )
     }
@@ -758,31 +816,21 @@ fun HomeAccountCard(
         AccountType.BKASH.name -> Icons.Default.PhoneAndroid to Color(0xFFE2136E)
         AccountType.NAGAD.name -> Icons.Default.PhoneAndroid to Color(0xFFF7931E)
         AccountType.ROCKET.name -> Icons.Default.PhoneAndroid to Color(0xFF8C3494)
-        AccountType.MFS.name -> Icons.Default.PhoneAndroid to NeonCyan
-        AccountType.BANK.name -> Icons.Default.AccountBalance to Color(0xFF0070F3)
+        AccountType.MFS.name -> Icons.Default.PhoneAndroid to Color(0xFF0284C7)
+        AccountType.BANK.name -> Icons.Default.AccountBalance to Color(0xFF2563EB)
         AccountType.CASH_FLOW.name, AccountType.CASH.name -> Icons.Default.AttachMoney to Color(0xFF10B981)
-        else -> Icons.Default.AccountBalance to NeonCyan
+        else -> Icons.Default.AccountBalance to MaterialTheme.colorScheme.primary
     }
 
     Card(
         modifier = Modifier
             .width(160.dp)
             .height(130.dp)
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    listOf(
-                        Color(0xFF00F0FF).copy(alpha = 0.6f),
-                        Color(0xFF0070F3).copy(alpha = 0.2f),
-                        Color(0xFF00F0FF).copy(alpha = 0.4f)
-                    )
-                ),
-                shape = RoundedCornerShape(20.dp)
-            )
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
             .bounceClick(scaleDown = 0.97f, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xCC0E1A34)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -799,8 +847,7 @@ fun HomeAccountCard(
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .background(brandColor.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                        .border(1.dp, brandColor.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                        .background(brandColor.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -811,13 +858,12 @@ fun HomeAccountCard(
                     )
                 }
 
-                // Glowing active status dot
+                // Clean active status dot
                 Box(
                     modifier = Modifier
                         .padding(top = 4.dp, end = 2.dp)
                         .size(8.dp)
-                        .background(NeonCyan, CircleShape)
-                        .neonGlow(color = NeonCyan, shape = CircleShape, strokeWidth = 1.dp)
+                        .background(brandColor, CircleShape)
                 )
             }
 
@@ -828,7 +874,7 @@ fun HomeAccountCard(
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     ),
-                    color = PureWhite,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
 
@@ -838,10 +884,10 @@ fun HomeAccountCard(
                     targetAmount = account.balance,
                     language = language,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     ),
-                    color = NeonCyan,
+                    color = MaterialTheme.colorScheme.primary,
                     isMasked = isHidden
                 )
             }
@@ -855,21 +901,11 @@ fun HomeAddAccountCard(onClick: () -> Unit) {
         modifier = Modifier
             .width(140.dp)
             .height(130.dp)
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    listOf(
-                        Color(0xFF00F0FF).copy(alpha = 0.4f),
-                        Color(0xFF0070F3).copy(alpha = 0.15f),
-                        Color(0xFF00F0FF).copy(alpha = 0.3f)
-                    )
-                ),
-                shape = RoundedCornerShape(20.dp)
-            )
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
             .bounceClick(scaleDown = 0.96f, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0x660E1A34)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
         )
     ) {
         Box(
@@ -880,14 +916,13 @@ fun HomeAddAccountCard(onClick: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Color(0x2600F0FF), CircleShape)
-                        .border(1.dp, Color(0x6600F0FF), CircleShape),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add Account",
-                        tint = NeonCyan,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -898,7 +933,7 @@ fun HomeAddAccountCard(onClick: () -> Unit) {
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 12.sp
                     ),
-                    color = NeonCyan
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -914,26 +949,15 @@ fun HomeTransactionRow(
 ) {
     val isIncome = txn.type == "INCOME"
     val tintColor = if (isIncome) Color(0xFF10B981) else Color(0xFFEF4444)
-    val glowColor = if (isIncome) Color(0xFF10B981).copy(alpha = 0.35f) else Color(0xFFEF4444).copy(alpha = 0.35f)
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 5.dp)
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    listOf(
-                        glowColor.copy(alpha = 0.5f),
-                        Color.Transparent,
-                        glowColor.copy(alpha = 0.3f)
-                    )
-                ),
-                shape = RoundedCornerShape(16.dp)
-            )
+            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
             .bounceClick(scaleDown = 0.98f) { },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC0E1A34))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
@@ -944,8 +968,7 @@ fun HomeTransactionRow(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(tintColor.copy(alpha = 0.15f), CircleShape)
-                    .border(1.dp, tintColor.copy(alpha = 0.35f), CircleShape),
+                    .background(tintColor.copy(alpha = 0.15f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -960,12 +983,12 @@ fun HomeTransactionRow(
                 Text(
                     text = txn.title,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = PureWhite
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "${txn.category} • ${txn.accountName}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF94A3B8)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -977,9 +1000,10 @@ fun HomeTransactionRow(
                 Text(
                     text = txn.date,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF94A3B8)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 }
+

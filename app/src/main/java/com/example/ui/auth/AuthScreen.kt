@@ -7,6 +7,9 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -769,7 +772,10 @@ private fun signInWithGoogle(
         return
     }
 
-    scope.launch {
+    // Crucial: Use Activity's lifecycleScope so that transitioning away from AuthScreen upon auth success
+    // does not cancel the sign-in coroutine in mid-flight with LeftCompositionCancellationException!
+    val targetScope = (activity as? ComponentActivity)?.lifecycleScope ?: scope
+    targetScope.launch {
         try {
             Log.d("Auth", "Requesting credential from CredentialManager...")
             val result = credentialManager.getCredential(activity, request)
@@ -827,6 +833,12 @@ private fun signInWithGoogle(
             val currentSha256 = runtimeSig?.second ?: AppSignatureHelper.EXPECTED_SHA256
             val matchesExpected = currentSha1.equals(AppSignatureHelper.EXPECTED_SHA1, ignoreCase = true)
 
+            // If user closed/dismissed the bottom sheet without selecting an account
+            if (rawMsg.contains("USER_CANCELED", ignoreCase = true) || (rawMsg.contains("cancel", ignoreCase = true) && !rawMsg.contains("10"))) {
+                onCancelled()
+                return@launch
+            }
+
             val detailMsg = buildString {
                 append("Sign-in bottom sheet was closed or dismissed ($rawMsg).\n\n")
                 if (!matchesExpected) {
@@ -844,6 +856,9 @@ private fun signInWithGoogle(
                 }
             }
             onError(detailMsg)
+        } catch (e: CancellationException) {
+            // Normal coroutine cancellation when leaving composition or transitioning screens smoothly
+            Log.d("Auth", "Google Sign-In coroutine cleanly finished or cancelled: ${e.message}")
         } catch (e: GetCredentialException) {
             Log.e("Auth", "GetCredentialException during Google Sign-In", e)
             val rawMsg = e.message ?: e.javaClass.simpleName
@@ -892,6 +907,10 @@ private fun signInWithGoogle(
             }
             onError(friendlyMsg)
         } catch (t: Throwable) {
+            if (t is CancellationException) {
+                Log.d("Auth", "Google Sign-In coroutine cancelled during screen transition: ${t.message}")
+                throw t
+            }
             Log.e("Auth", "Unexpected error during Google Sign-In", t)
             val msg = t.localizedMessage ?: t.javaClass.simpleName
             val isInternal = msg.contains("internal error", ignoreCase = true)
