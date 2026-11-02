@@ -115,7 +115,9 @@ import com.example.util.configureAppCheck
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 enum class Screen {
@@ -141,11 +143,13 @@ class MainActivity : ComponentActivity() {
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        // App Check intent wiring
-        try {
-            configureAppCheck(this, intent)
-        } catch (e: Throwable) {
-            Log.e("MainActivity", "Error during configureAppCheck", e)
+        // App Check intent wiring offloaded to background thread to keep main thread and window rendering free
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                configureAppCheck(applicationContext, intent)
+            } catch (e: Throwable) {
+                Log.e("MainActivity", "Error during configureAppCheck", e)
+            }
         }
 
         // EdgeToEdge invocation
@@ -195,7 +199,7 @@ class MainActivity : ComponentActivity() {
 
                     Crossfade(
                         targetState = showSplash,
-                        animationSpec = tween(450, easing = FastOutSlowInEasing),
+                        animationSpec = tween(200, easing = FastOutSlowInEasing),
                         label = "splashCrossfade"
                     ) { isSplash ->
                         if (isSplash) {
@@ -532,8 +536,13 @@ fun MainWalletApp(
                         },
                         onDeleteTransactionClicked = { txn ->
                             coroutineScope.launch {
-                                repository.deleteTransaction(txn)
-                                snackbarHostState.showSnackbar("Transaction deleted")
+                                try {
+                                    repository.deleteTransaction(txn)
+                                    snackbarHostState.showSnackbar("Transaction deleted")
+                                } catch (t: Throwable) {
+                                    android.util.Log.e("MainActivity", "Error deleting transaction", t)
+                                    snackbarHostState.showSnackbar("Could not delete: ${t.localizedMessage ?: "Unknown error"}")
+                                }
                             }
                         }
                     )

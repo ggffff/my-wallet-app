@@ -363,53 +363,48 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Picture 1 (Animated): Add Income (Downward arrow floating bounce)
+                // Picture 1: Add Income
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_add_income,
                     label = if (language == AppLanguage.BANGLA) "আয় যোগ" else "Add Income",
                     glowColor = IncomeGreen,
                     testTag = "quick_action_add_income",
-                    animType = QuickActionAnimType.BOUNCE_FLOAT,
                     onClick = { onAddTransactionClicked(TransactionType.INCOME) }
                 )
 
-                // Add Spent (Floating bounce)
+                // Picture 2: Add Spent
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_add_spent,
                     label = if (language == AppLanguage.BANGLA) "ব্যয় যোগ" else "Add Spent",
                     glowColor = ExpenseRed,
                     testTag = "quick_action_add_spent",
-                    animType = QuickActionAnimType.BOUNCE_FLOAT,
                     onClick = { onAddTransactionClicked(TransactionType.SPENT) }
                 )
 
-                // Picture 2 (Animated): Saving Goals (Archery target breathing pulse & dart arrow aim motion)
+                // Picture 3: Saving Goals
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_savings_goal,
                     label = if (language == AppLanguage.BANGLA) "সঞ্চয় লক্ষ্য" else "Saving Goals",
                     glowColor = Color(0xFF2563EB),
                     testTag = "quick_action_saving_goals",
-                    animType = QuickActionAnimType.PULSE_TARGET,
                     onClick = onViewGoalsClicked
                 )
 
-                // Bills & Dues (3D calendar "26" with clock icon)
+                // Picture 4: Bills & Dues
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_bills_dues,
                     label = if (language == AppLanguage.BANGLA) "বিল ও বকেয়া" else "Bills & Dues",
                     glowColor = Color(0xFF0284C7),
                     testTag = "quick_action_bills_dues",
-                    animType = QuickActionAnimType.NONE,
                     onClick = onViewBillsClicked
                 )
 
-                // Picture 3 (Animated): AI Tips (Magical sparkle rotation & scale pulse)
+                // Picture 5: AI Tips
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_ai_tips,
                     label = if (language == AppLanguage.BANGLA) "এআই টিপস" else "AI Tips",
                     glowColor = Color(0xFF9333EA),
                     testTag = "quick_action_ai_tips",
-                    animType = QuickActionAnimType.SPARKLE_MAGIC,
                     onClick = onOpenAiAdvisor
                 )
             }
@@ -426,7 +421,8 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 4.dp)
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                    .shadow(1.5.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.06f))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
                     .bounceClick { onViewBillsClicked() },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
@@ -651,21 +647,8 @@ fun HomeScreen(
 }
 
 /**
- * Animation modes for Suggested Action Pictures:
- * 1. PULSE_TARGET: Breathing pulse with subtle dart aim micro-motion for Saving Goals
- * 2. SPARKLE_MAGIC: Smooth rotation & scale pulse for AI Tips
- * 3. BOUNCE_FLOAT: Gentle vertical floating bounce for Add Income / Add Spent
- */
-enum class QuickActionAnimType {
-    NONE,
-    PULSE_TARGET,
-    SPARKLE_MAGIC,
-    BOUNCE_FLOAT
-}
-
-/**
- * Clean 3D Quick Action Button component with smooth, lively native Compose animations
- * for the suggested pictures, without tacky neon glow visual effects.
+ * Clean static Quick Action Button component with high-fidelity 3D icons,
+ * perfectly optimized with zero lag, zero battery drain, and no moving animations.
  */
 @Composable
 fun QuickAction3DItem(
@@ -673,120 +656,37 @@ fun QuickAction3DItem(
     label: String,
     glowColor: Color,
     testTag: String,
-    animType: QuickActionAnimType = QuickActionAnimType.NONE,
     onClick: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "quickActionTransition_$label")
-
-    // Animations depending on animType:
-    val scale = when (animType) {
-        QuickActionAnimType.PULSE_TARGET -> {
-            val s by infiniteTransition.animateFloat(
-                initialValue = 0.95f,
-                targetValue = 1.05f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1200, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "targetScale"
-            )
-            s
-        }
-        QuickActionAnimType.SPARKLE_MAGIC -> {
-            val s by infiniteTransition.animateFloat(
-                initialValue = 0.93f,
-                targetValue = 1.07f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1100, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "sparkleScale"
-            )
-            s
-        }
-        else -> 1f
-    }
-
-    val rotation = when (animType) {
-        QuickActionAnimType.PULSE_TARGET -> {
-            val r by infiniteTransition.animateFloat(
-                initialValue = -3f,
-                targetValue = 3f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1600, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "targetRot"
-            )
-            r
-        }
-        QuickActionAnimType.SPARKLE_MAGIC -> {
-            val r by infiniteTransition.animateFloat(
-                initialValue = -8f,
-                targetValue = 8f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1300, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "sparkleRot"
-            )
-            r
-        }
-        else -> 0f
-    }
-
-    val translationY = when (animType) {
-        QuickActionAnimType.BOUNCE_FLOAT -> {
-            val y by infiniteTransition.animateFloat(
-                initialValue = -3.5f,
-                targetValue = 3.5f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1250, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "bounceY"
-            )
-            y
-        }
-        else -> 0f
-    }
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .bounceClick(scaleDown = 0.90f, onClick = onClick)
+            .clickable(onClick = onClick)
             .testTag(testTag)
     ) {
         Box(
             modifier = Modifier.size(62.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Subtle, sleek container background
             Box(
                 modifier = Modifier
                     .size(56.dp)
+                    .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                    .background(MaterialTheme.colorScheme.surface)
                     .border(
                         width = 1.dp,
-                        color = glowColor.copy(alpha = 0.35f),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                         shape = RoundedCornerShape(16.dp)
                     )
             )
 
-            // High-fidelity 3D Icon matching user's reference image
             Image(
                 painter = painterResource(id = drawableRes),
                 contentDescription = label,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(54.dp)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                        rotationZ = rotation
-                        this.translationY = translationY * density
-                    }
                     .clip(RoundedCornerShape(14.dp))
             )
         }
@@ -826,7 +726,8 @@ fun HomeAccountCard(
         modifier = Modifier
             .width(160.dp)
             .height(130.dp)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+            .shadow(2.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.05f))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
             .bounceClick(scaleDown = 0.97f, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
@@ -901,11 +802,12 @@ fun HomeAddAccountCard(onClick: () -> Unit) {
         modifier = Modifier
             .width(140.dp)
             .height(130.dp)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+            .shadow(1.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
             .bounceClick(scaleDown = 0.96f, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Box(
@@ -954,7 +856,8 @@ fun HomeTransactionRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 5.dp)
-            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
+            .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .bounceClick(scaleDown = 0.98f) { },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)

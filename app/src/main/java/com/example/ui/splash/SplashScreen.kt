@@ -40,26 +40,26 @@ import kotlinx.coroutines.launch
 fun SplashScreen(
     onSplashFinished: () -> Unit
 ) {
-    // Logo Design Reveal: smooth scale and alpha reveal with soft contact shadow
-    val scale = remember { Animatable(0.88f) }
-    val alpha = remember { Animatable(0f) }
+    // Logo Design Reveal: snappy, smooth scale and alpha reveal
+    val scale = remember { Animatable(0.95f) }
+    val alpha = remember { Animatable(0.4f) }
 
     LaunchedEffect(Unit) {
         try {
-            // Smooth studio logo reveal
+            // Snappy logo reveal well within Android 1000ms SurfaceSyncGroup window
             launch {
                 alpha.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
+                    animationSpec = tween(250, easing = FastOutSlowInEasing)
                 )
             }
             scale.animateTo(
                 targetValue = 1.0f,
-                animationSpec = tween(750, easing = FastOutSlowInEasing)
+                animationSpec = tween(350, easing = FastOutSlowInEasing)
             )
 
-            // Pleasant brief pause
-            delay(400)
+            // Brief, responsive pause before transition
+            delay(120)
         } catch (t: Throwable) {
             android.util.Log.w("SplashScreen", "Animation interrupted", t)
         } finally {

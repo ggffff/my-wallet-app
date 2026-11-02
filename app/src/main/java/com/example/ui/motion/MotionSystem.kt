@@ -106,95 +106,7 @@ fun Modifier.tilt3D(
     elevationDp: Float = 14f,
     shape: Shape = RoundedCornerShape(24.dp),
     enabled: Boolean = true
-): Modifier = composed {
-    if (!enabled) return@composed this
-
-    val coroutineScope = rememberCoroutineScope()
-    var size by remember { mutableStateOf(IntSize.Zero) }
-
-    val rotX = remember { Animatable(0f) }
-    val rotY = remember { Animatable(0f) }
-    val elevationAnim = remember { Animatable(elevationDp) }
-    val scaleAnim = remember { Animatable(1f) }
-
-    this
-        .onSizeChanged { size = it }
-        .pointerInput(size) {
-            if (size.width == 0 || size.height == 0) return@pointerInput
-
-            detectDragGestures(
-                onDragStart = { offset ->
-                    coroutineScope.launch {
-                        elevationAnim.animateTo(elevationDp * 1.6f, tween(140))
-                    }
-                    coroutineScope.launch {
-                        scaleAnim.animateTo(1.02f, tween(140))
-                    }
-                    val centerX = size.width / 2f
-                    val centerY = size.height / 2f
-                    val normX = ((offset.x - centerX) / centerX).coerceIn(-1f, 1f)
-                    val normY = ((offset.y - centerY) / centerY).coerceIn(-1f, 1f)
-
-                    coroutineScope.launch {
-                        rotY.animateTo(normX * maxRotationY, spring(stiffness = Spring.StiffnessMediumLow))
-                    }
-                    coroutineScope.launch {
-                        rotX.animateTo(-normY * maxRotationX, spring(stiffness = Spring.StiffnessMediumLow))
-                    }
-                },
-                onDragEnd = {
-                    coroutineScope.launch {
-                        rotX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
-                    }
-                    coroutineScope.launch {
-                        rotY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
-                    }
-                    coroutineScope.launch {
-                        elevationAnim.animateTo(elevationDp, tween(250))
-                    }
-                    coroutineScope.launch {
-                        scaleAnim.animateTo(1f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium))
-                    }
-                },
-                onDragCancel = {
-                    coroutineScope.launch {
-                        rotX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
-                    }
-                    coroutineScope.launch {
-                        rotY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
-                    }
-                    coroutineScope.launch {
-                        elevationAnim.animateTo(elevationDp, tween(250))
-                    }
-                    coroutineScope.launch {
-                        scaleAnim.animateTo(1f, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium))
-                    }
-                },
-                onDrag = { change, _ ->
-                    change.consume()
-                    val centerX = size.width / 2f
-                    val centerY = size.height / 2f
-                    val normX = ((change.position.x - centerX) / centerX).coerceIn(-1f, 1f)
-                    val normY = ((change.position.y - centerY) / centerY).coerceIn(-1f, 1f)
-
-                    coroutineScope.launch {
-                        rotY.snapTo(normX * maxRotationY)
-                        rotX.snapTo(-normY * maxRotationX)
-                    }
-                }
-            )
-        }
-        .graphicsLayer {
-            rotationX = rotX.value
-            rotationY = rotY.value
-            scaleX = scaleAnim.value
-            scaleY = scaleAnim.value
-            cameraDistance = cameraDistanceFactor * density
-            shadowElevation = elevationAnim.value
-            this.shape = shape
-            this.clip = true
-        }
-}
+): Modifier = this
 
 /**
  * Glassmorphic Surface Modifier.
@@ -227,17 +139,7 @@ fun Modifier.neonGlow(
     color: Color,
     shape: Shape = RoundedCornerShape(20.dp),
     strokeWidth: Dp = 1.5.dp
-): Modifier = this.border(
-    width = strokeWidth,
-    brush = Brush.linearGradient(
-        listOf(
-            color.copy(alpha = 0.65f),
-            color.copy(alpha = 0.15f),
-            color.copy(alpha = 0.85f)
-        )
-    ),
-    shape = shape
-)
+): Modifier = this
 
 /**
  * Staggered Entrance Modifier.
@@ -384,20 +286,8 @@ fun AnimatedGoalProgressBar(
 fun GlassmorphicCardSheen(
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.24f),
-                        Color.White.copy(alpha = 0.06f),
-                        Color.Transparent
-                    ),
-                    center = Offset(220f, 50f),
-                    radius = 480f
-                )
-            )
-    )
+    // Clean glare-free overlay - no harsh bright white hotspots
+    Box(modifier = modifier)
 }
 
 /**
@@ -410,27 +300,5 @@ fun PulsingAuraGlow(
     primaryColor: Color = PremiumBlue,
     secondaryColor: Color = PremiumPink
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "auraTransition")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.65f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
-
-    Box(
-        modifier = modifier
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        primaryColor.copy(alpha = pulseAlpha * 0.4f),
-                        secondaryColor.copy(alpha = pulseAlpha * 0.25f),
-                        Color.Transparent
-                    )
-                )
-            )
-    )
+    Box(modifier = modifier)
 }

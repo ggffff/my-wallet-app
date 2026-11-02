@@ -380,27 +380,39 @@ class WalletRepository(private val db: FirebaseFirestore) {
         try {
             db.runTransaction { firestoreTxn ->
                 if (txn.type == TransactionType.TRANSFER.name) {
-                    if (txn.accountId.isNotBlank()) {
-                        val fromRef = db.collection("users").document(uid).collection("accounts").document(txn.accountId)
-                        val fromBal = firestoreTxn.get(fromRef).getDouble("balance") ?: 0.0
+                    val fromRef = if (txn.accountId.isNotBlank()) {
+                        db.collection("users").document(uid).collection("accounts").document(txn.accountId)
+                    } else null
+                    val toRef = if (!txn.toAccountId.isNullOrBlank()) {
+                        db.collection("users").document(uid).collection("accounts").document(txn.toAccountId)
+                    } else null
+
+                    // 1. ALL READS FIRST
+                    val fromSnapshot = fromRef?.let { firestoreTxn.get(it) }
+                    val toSnapshot = toRef?.let { firestoreTxn.get(it) }
+
+                    // 2. ALL WRITES AFTER READS
+                    if (fromRef != null && fromSnapshot != null && fromSnapshot.exists()) {
+                        val fromBal = fromSnapshot.getDouble("balance") ?: 0.0
                         val fee = txn.transferFee ?: 0.0
                         firestoreTxn.update(fromRef, "balance", fromBal + (txn.amount + fee), "updatedAt", FieldValue.serverTimestamp())
                     }
-                    if (!txn.toAccountId.isNullOrBlank()) {
-                        val toRef = db.collection("users").document(uid).collection("accounts").document(txn.toAccountId)
-                        val toBal = firestoreTxn.get(toRef).getDouble("balance") ?: 0.0
+                    if (toRef != null && toSnapshot != null && toSnapshot.exists()) {
+                        val toBal = toSnapshot.getDouble("balance") ?: 0.0
                         firestoreTxn.update(toRef, "balance", toBal - txn.amount, "updatedAt", FieldValue.serverTimestamp())
                     }
                 } else if (txn.accountId.isNotBlank()) {
                     val accDocRef = db.collection("users").document(uid).collection("accounts").document(txn.accountId)
                     val accSnapshot = firestoreTxn.get(accDocRef)
-                    val currentBalance = accSnapshot.getDouble("balance") ?: 0.0
-                    val revertedBalance = if (txn.type == TransactionType.INCOME.name) {
-                        currentBalance - txn.amount
-                    } else {
-                        currentBalance + txn.amount
+                    if (accSnapshot.exists()) {
+                        val currentBalance = accSnapshot.getDouble("balance") ?: 0.0
+                        val revertedBalance = if (txn.type == TransactionType.INCOME.name) {
+                            currentBalance - txn.amount
+                        } else {
+                            currentBalance + txn.amount
+                        }
+                        firestoreTxn.update(accDocRef, "balance", revertedBalance, "updatedAt", FieldValue.serverTimestamp())
                     }
-                    firestoreTxn.update(accDocRef, "balance", revertedBalance, "updatedAt", FieldValue.serverTimestamp())
                 }
                 firestoreTxn.delete(txnDocRef)
             }.await()

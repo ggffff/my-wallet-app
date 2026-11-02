@@ -49,14 +49,14 @@ val SunsetSurfaceElevated = Color(0xFF2C1C12)
 val SunsetBorder = Color(0xFF4D321F)
 val SunsetGlow = Color(0xFFFDBA74)
 
-// Theme 5: Frosted Pearl (Crisp Light & Sapphire Rose)
-val PearlPrimary = Color(0xFF2563EB)
-val PearlSecondary = Color(0xFFE11D48)
-val PearlBackground = Color(0xFFF8FAFC)
-val PearlSurface = Color(0xFFFFFFFF)
-val PearlSurfaceElevated = Color(0xFFF1F5F9)
-val PearlBorder = Color(0xFFCBD5E1)
-val PearlGlow = Color(0xFF93C5FD)
+// Theme 5: Clean Modern Light Mode (Refined Glare-Free Fintech Palette)
+val PearlPrimary = Color(0xFF2563EB)         // Royal Blue 600
+val PearlSecondary = Color(0xFF0284C7)       // Harmonious Sky-Slate Blue (replaced harsh magenta)
+val PearlBackground = Color(0xFFF1F5F9)      // Soft Slate 100 (eliminates blinding 100% white glare)
+val PearlSurface = Color(0xFFFFFFFF)         // Crisp Pure White Cards
+val PearlSurfaceElevated = Color(0xFFE2E8F0) // Subtle Slate 200
+val PearlBorder = Color(0xFFCBD5E1)          // Crisp Slate 300 Card Outline
+val PearlGlow = Color(0x1A2563EB)            // Zero-glare soft accent tint
 
 // Financial Semantic Accents
 val IncomeGreen = Color(0xFF10B981)

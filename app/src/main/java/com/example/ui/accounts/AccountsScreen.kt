@@ -91,7 +91,7 @@ import com.example.ui.theme.ColorRocket
 import com.example.ui.theme.DarkNavy
 import com.example.ui.theme.DeepBlack
 import com.example.ui.theme.ExpenseRed
-import com.example.ui.theme.IncomeGreen
+import com.example.ui.theme.LocalAppTheme
 import com.example.ui.theme.PremiumBlue
 import com.example.ui.theme.PremiumPink
 import com.example.ui.theme.PureWhite
@@ -193,44 +193,33 @@ fun AccountsScreen(
                 }
             }
 
-            // Total Liquidity Card with 3D Tilt and Glowing Background
+            // Total Liquidity Card with Adaptive Theme Gradient
             item {
+                val isDark = LocalAppTheme.current.isDark
+                val liquidityGradient = if (isDark) {
+                    listOf(DarkNavy, Color(0xFF142443), Color(0xFF1E365E))
+                } else {
+                    listOf(Color(0xFF1E40AF), Color(0xFF2563EB), Color(0xFF3B82F6))
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 6.dp)
                         .staggeredEntrance(index = 1)
                 ) {
-                    PulsingAuraGlow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp)
-                            .clip(RoundedCornerShape(26.dp)),
-                        primaryColor = PremiumBlue,
-                        secondaryColor = PremiumPink
-                    )
-
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .tilt3D(maxRotationX = 7f, maxRotationY = 7f, elevationDp = 12f)
-                            .neonGlow(color = PremiumBlue.copy(alpha = 0.4f), shape = RoundedCornerShape(22.dp), strokeWidth = 1.dp)
-                            .shadow(16.dp, RoundedCornerShape(22.dp)),
+                            .shadow(4.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.1f)),
                         shape = RoundedCornerShape(22.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(
-                                    Brush.linearGradient(
-                                        colors = listOf(
-                                            DarkNavy,
-                                            Color(0xFF142443),
-                                            Color(0xFF1E365E)
-                                        )
-                                    )
-                                )
+                                .background(Brush.linearGradient(liquidityGradient))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(22.dp))
                                 .padding(20.dp)
                         ) {
                             GlassmorphicCardSheen(modifier = Modifier.matchParentSize())
@@ -862,9 +851,11 @@ fun AccountDetailListItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 6.dp)
+            .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .bounceClick(scaleDown = 0.98f, onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(

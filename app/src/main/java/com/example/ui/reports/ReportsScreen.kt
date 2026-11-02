@@ -58,8 +58,11 @@ import com.example.ui.motion.bounceClick
 import com.example.ui.motion.neonGlow
 import com.example.ui.motion.staggeredEntrance
 import com.example.ui.motion.tilt3D
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
+import com.example.ui.theme.LocalAppTheme
 import com.example.ui.theme.PremiumBlue
 import com.example.ui.theme.PremiumPink
 import com.example.ui.theme.PureWhite
@@ -142,22 +145,13 @@ fun ReportsScreen(
                     .padding(horizontal = 20.dp, vertical = 6.dp)
                     .staggeredEntrance(index = 1)
             ) {
-                PulsingAuraGlow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(26.dp)),
-                    primaryColor = PremiumBlue,
-                    secondaryColor = PremiumPink
-                )
-
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .tilt3D(maxRotationX = 6f, maxRotationY = 6f, elevationDp = 10f)
-                        .neonGlow(color = PremiumBlue.copy(alpha = 0.4f), shape = RoundedCornerShape(22.dp), strokeWidth = 1.dp),
+                        .shadow(2.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.05f))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
                     shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Text(
@@ -210,7 +204,7 @@ fun ReportsScreen(
                             Card(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -236,7 +230,7 @@ fun ReportsScreen(
                             Card(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -336,18 +330,19 @@ fun ReportsScreen(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
+                val isDark = LocalAppTheme.current.isDark
+                val aiGradient = if (isDark) {
+                    listOf(Color(0xFF1E3A8A), Color(0xFF312E81))
+                } else {
+                    listOf(Color(0xFF1D4ED8), Color(0xFF2563EB))
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    PremiumBlue,
-                                    PremiumPink
-                                )
-                            )
-                        )
-                        .neonGlow(color = PureWhite.copy(alpha = 0.4f), shape = RoundedCornerShape(20.dp), strokeWidth = 1.dp)
+                        .shadow(2.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.08f))
+                        .background(Brush.linearGradient(aiGradient), RoundedCornerShape(20.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(20.dp))
                         .padding(18.dp)
                 ) {
                     Row(

@@ -34,8 +34,11 @@ import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Save
@@ -60,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -117,29 +121,57 @@ fun SettingsScreen(
         mutableStateOf(userProfile?.photoUrl?.ifBlank { "avatar_1" } ?: "avatar_1")
     }
 
-    // Modern Zero-Permission Android Photo Picker for Custom Profile Picture
+    // Universal Android Photo Picker & Gallery/Files Picker for Phone Uploads
+    val saveImageFromUri: (Uri) -> Unit = { uri ->
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val profileDir = File(context.filesDir, "profiles")
+                if (!profileDir.exists()) profileDir.mkdirs()
+                val photoFile = File(profileDir, "user_avatar_${System.currentTimeMillis()}.jpg")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    photoFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                val localUriString = Uri.fromFile(photoFile).toString()
+                withContext(Dispatchers.Main) {
+                    selectedAvatar = localUriString
+                    onSaveProfile(displayName, localUriString)
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsScreen", "Failed to save profile picture", e)
+            }
+        }
+    }
+
+    // Direct universal Phone Gallery/Storage contract
+    val getContentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            saveImageFromUri(uri)
+        }
+    }
+
+    // Modern Zero-Permission Android Photo Picker
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
-            coroutineScope.launch(Dispatchers.IO) {
-                try {
-                    val profileDir = File(context.filesDir, "profiles")
-                    if (!profileDir.exists()) profileDir.mkdirs()
-                    val photoFile = File(profileDir, "user_avatar_${System.currentTimeMillis()}.jpg")
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        photoFile.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                    val localUriString = Uri.fromFile(photoFile).toString()
-                    withContext(Dispatchers.Main) {
-                        selectedAvatar = localUriString
-                        onSaveProfile(displayName, localUriString)
-                    }
-                } catch (e: Exception) {
-                    Log.e("SettingsScreen", "Failed to save profile picture", e)
-                }
+            saveImageFromUri(uri)
+        }
+    }
+
+    val launchUniversalImagePicker: () -> Unit = {
+        try {
+            getContentLauncher.launch("image/*")
+        } catch (e: Exception) {
+            try {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            } catch (ex: Exception) {
+                Log.e("SettingsScreen", "Cannot open photo picker", ex)
             }
         }
     }
@@ -168,7 +200,7 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Personalize photo, 5 distinct themes & financial utilities",
+                text = "Personalize profile photo, dark/light appearance & financial utilities",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -181,9 +213,10 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
-                .tilt3D(maxRotationX = 4f, maxRotationY = 4f, elevationDp = 8f),
+                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),
@@ -208,46 +241,23 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Interactive 3D Avatar Frame with Neon Glow & Camera Badge
+                // Avatar Frame with Direct Phone Gallery Click & Camera Badge
                 Box(
                     modifier = Modifier
-                        .size(110.dp)
-                        .bounceClick(scaleDown = 0.94f) {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
+                        .size(104.dp)
+                        .clip(CircleShape)
+                        .clickable { launchUniversalImagePicker() },
                     contentAlignment = Alignment.Center
                 ) {
-                    // Pulsing background aura
-                    PulsingAuraGlow(
-                        modifier = Modifier
-                            .size(106.dp)
-                            .clip(CircleShape),
-                        primaryColor = activeTheme.primaryColor,
-                        secondaryColor = activeTheme.secondaryColor
-                    )
-
-                    // Profile Image Container
+                    // Profile Image Container (Static crisp border without GPU shaders/animations)
                     Box(
                         modifier = Modifier
                             .size(96.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(activeTheme.primaryColor, activeTheme.secondaryColor)
-                                )
-                            )
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .border(
                                 width = 3.dp,
-                                brush = Brush.sweepGradient(
-                                    listOf(
-                                        activeTheme.primaryColor,
-                                        activeTheme.secondaryColor,
-                                        activeTheme.glowColor,
-                                        activeTheme.primaryColor
-                                    )
-                                ),
+                                color = activeTheme.primaryColor,
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -300,11 +310,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
-                        onClick = {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
+                        onClick = { launchUniversalImagePicker() },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -319,7 +325,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isCustomPhoto) "Change Photo" else "Upload Photo",
+                            text = if (isCustomPhoto) "Change Photo (ফোন থেকে)" else "Upload Photo (ফোন থেকে)",
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -442,15 +448,16 @@ fun SettingsScreen(
         }
 
         // ==========================================
-        // 2. 5 Distinct Themes Selection Section
+        // 2. Dark / Light Appearance Section
         // ==========================================
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
-                .tilt3D(maxRotationX = 3f, maxRotationY = 3f, elevationDp = 6f),
+                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),
@@ -458,56 +465,184 @@ fun SettingsScreen(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(activeTheme.primaryColor.copy(alpha = 0.2f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ColorLens,
-                                contentDescription = null,
-                                tint = activeTheme.primaryColor,
-                                modifier = Modifier.size(20.dp)
-                            )
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(activeTheme.primaryColor.copy(alpha = 0.2f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (currentDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode,
+                            contentDescription = null,
+                            tint = activeTheme.primaryColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Theme & Appearance / থিম ও ডিসপ্লে",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Switch between Dark and Light mode",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Dark Mode Option Card
+                val isDarkSelected = currentDarkTheme
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF0F172A))
+                        .border(
+                            width = if (isDarkSelected) 2.dp else 1.dp,
+                            color = if (isDarkSelected) activeTheme.primaryColor else Color(0xFF334155),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .clickable {
+                            onToggleDarkTheme(true)
+                            onSelectTheme(AppTheme.CYBER_NEON)
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "App Theme & Visual Effects",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "5 Distinct Ultra-Premium Styles",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1E293B)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DarkMode,
+                                    contentDescription = "Dark Mode",
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "Dark Mode (ডার্ক মোড)",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = PureWhite
+                                )
+                                Text(
+                                    text = "Easy on eyes • Modern slate background",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+
+                        if (isDarkSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(activeTheme.primaryColor),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Active Dark Mode",
+                                    tint = PureWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
 
-                Text(
-                    text = "Select a theme to transform colors, ambient glowing halos, and card aesthetics:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Render the 5 distinct themes
-                AppTheme.entries.forEach { themeOption ->
-                    val isSelected = currentTheme == themeOption
-                    ThemeSelectionCard(
-                        theme = themeOption,
-                        isSelected = isSelected,
-                        onClick = {
-                            onSelectTheme(themeOption)
-                            onToggleDarkTheme(themeOption.isDark)
+                // Light Mode Option Card
+                val isLightSelected = !currentDarkTheme
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFFFFFFF))
+                        .border(
+                            width = if (isLightSelected) 2.dp else 1.dp,
+                            color = if (isLightSelected) activeTheme.primaryColor else Color(0xFFCBD5E1),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .clickable {
+                            onToggleDarkTheme(false)
+                            onSelectTheme(AppTheme.FROSTED_PEARL)
                         }
-                    )
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE2E8F0)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LightMode,
+                                    contentDescription = "Light Mode",
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "Light Mode (লাইট মোড)",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Clean slate • Soft on eyes, zero glare",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF475569)
+                                )
+                            }
+                        }
+
+                        if (isLightSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(activeTheme.primaryColor),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Active Light Mode",
+                                    tint = PureWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -518,9 +653,11 @@ fun SettingsScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = 20.dp, vertical = 6.dp)
+                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier.padding(18.dp),
@@ -616,9 +753,11 @@ fun SettingsScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = 20.dp, vertical = 6.dp)
+                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
                 Text(
@@ -695,9 +834,11 @@ fun SettingsScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 20.dp)
+                .shadow(1.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(20.dp)),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Button(
                 onClick = onSignOut,
@@ -719,123 +860,3 @@ fun SettingsScreen(
     }
 }
 
-/**
- * Interactive card displaying an individual theme with live preview colors and active glow
- */
-@Composable
-private fun ThemeSelectionCard(
-    theme: AppTheme,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val borderColor = if (isSelected) theme.primaryColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-    val borderWidth = if (isSelected) 2.dp else 1.dp
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(theme.previewBg.copy(alpha = if (theme.isDark) 0.85f else 0.45f))
-            .border(borderWidth, borderColor, RoundedCornerShape(16.dp))
-            .then(
-                if (isSelected) {
-                    Modifier.neonGlow(color = theme.primaryColor, shape = RoundedCornerShape(16.dp), strokeWidth = 1.5.dp)
-                } else Modifier
-            )
-            .clickable { onClick() }
-            .padding(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                // Color preview dots
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy((-6).dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(theme.primaryColor)
-                            .border(1.5.dp, PureWhite, CircleShape)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(theme.secondaryColor)
-                            .border(1.5.dp, PureWhite, CircleShape)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(theme.glowColor)
-                            .border(1.5.dp, PureWhite, CircleShape)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = theme.displayName,
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (theme.isDark) PureWhite else Color(0xFF0F172A)
-                        )
-                        if (theme.id == "cyber_neon") {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(theme.primaryColor.copy(alpha = 0.2f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "DEFAULT",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = theme.primaryColor
-                                )
-                            }
-                        }
-                    }
-                    Text(
-                        text = theme.subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (theme.isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-                    )
-                }
-            }
-
-            AnimatedVisibility(
-                visible = isSelected,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(theme.primaryColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = PureWhite,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}

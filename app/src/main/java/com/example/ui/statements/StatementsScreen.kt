@@ -26,6 +26,9 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -37,14 +40,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.border
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +78,7 @@ fun StatementsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedTypeFilter by remember { mutableStateOf<String?>("ALL") }
     var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
+    var txnToDelete by remember { mutableStateOf<Transaction?>(null) }
 
     val filteredList = remember(transactions, searchQuery, selectedTypeFilter, selectedCategoryFilter) {
         transactions.filter { txn ->
@@ -215,9 +222,10 @@ fun StatementsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp)
                     .staggeredEntrance(index = 3)
-                    .neonGlow(color = PremiumBlue.copy(alpha = 0.25f), shape = RoundedCornerShape(16.dp), strokeWidth = 1.dp),
+                    .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Row(
                     modifier = Modifier
@@ -252,7 +260,7 @@ fun StatementsScreen(
                         Text(
                             text = formatBdt(totalExpense, language),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = PremiumPink
+                            color = ExpenseRed
                         )
                     }
                 }
@@ -291,12 +299,50 @@ fun StatementsScreen(
                             txn = txn,
                             language = language,
                             modifier = Modifier.staggeredEntrance(index = (4 + index).coerceAtMost(15)),
-                            onDelete = { onDeleteTransactionClicked(txn) }
+                            onDelete = { txnToDelete = txn }
                         )
                     }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
+        }
+
+        if (txnToDelete != null) {
+            val target = txnToDelete!!
+            AlertDialog(
+                onDismissRequest = { txnToDelete = null },
+                title = {
+                    Text(
+                        text = if (language == com.example.util.AppLanguage.BANGLA) "লেনদেন ডিলিট করবেন?" else "Delete Transaction?",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = if (language == com.example.util.AppLanguage.BANGLA)
+                            "'${target.title}' লেনদেনটি স্থায়ীভাবে ডিলিট করতে চান? সংশ্লিষ্ট অ্যাকাউন্টের ব্যালেন্স সমন্বয় করা হবে।"
+                        else
+                            "Are you sure you want to delete '${target.title}'? The account balance will be automatically adjusted."
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val toDel = target
+                            txnToDelete = null
+                            onDeleteTransactionClicked(toDel)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
+                    ) {
+                        Text(if (language == com.example.util.AppLanguage.BANGLA) "ডিলিট করুন" else "Delete", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { txnToDelete = null }) {
+                        Text(if (language == com.example.util.AppLanguage.BANGLA) "বাতিল" else "Cancel")
+                    }
+                }
+            )
         }
     }
 }
@@ -315,10 +361,11 @@ private fun StatementCardItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .neonGlow(color = glowColor, shape = RoundedCornerShape(16.dp), strokeWidth = 1.dp)
+            .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .bounceClick(scaleDown = 0.98f) { },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier

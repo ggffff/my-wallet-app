@@ -73,8 +73,8 @@ enum class AppTheme(
     ),
     FROSTED_PEARL(
         id = "frosted_pearl",
-        displayName = "Frosted Pearl",
-        subtitle = "Crisp Light • Sapphire & Rose",
+        displayName = "Clean Light",
+        subtitle = "Soft Slate • Royal Blue & Crisp White",
         isDark = false,
         primaryColor = PearlPrimary,
         secondaryColor = PearlSecondary,
@@ -197,7 +197,7 @@ val SunsetBlazeColorScheme = darkColorScheme(
     outline = SunsetBorder
 )
 
-// 5. Frosted Pearl Color Scheme (Light)
+// 5. Clean Light Color Scheme (Balanced Slate & Royal Blue, No Eye Strain)
 val FrostedPearlColorScheme = lightColorScheme(
     primary = PearlPrimary,
     onPrimary = PureWhite,
@@ -205,8 +205,8 @@ val FrostedPearlColorScheme = lightColorScheme(
     onPrimaryContainer = Color(0xFF1E40AF),
     secondary = PearlSecondary,
     onSecondary = PureWhite,
-    secondaryContainer = Color(0xFFFFE4E6),
-    onSecondaryContainer = Color(0xFF9F1239),
+    secondaryContainer = Color(0xFFE0F2FE),
+    onSecondaryContainer = Color(0xFF0369A1),
     tertiary = IncomeGreen,
     onTertiary = PureWhite,
     error = ExpenseRed,
@@ -216,8 +216,9 @@ val FrostedPearlColorScheme = lightColorScheme(
     surface = PearlSurface,
     onSurface = Color(0xFF0F172A),
     surfaceVariant = PearlSurfaceElevated,
-    onSurfaceVariant = Color(0xFF64748B),
-    outline = PearlBorder
+    onSurfaceVariant = Color(0xFF475569),
+    outline = PearlBorder,
+    outlineVariant = Color(0xFFE2E8F0)
 )
 
 // Backwards compatibility alias
