@@ -168,6 +168,8 @@ class MainActivity : ComponentActivity() {
             var isDarkTheme by remember { mutableStateOf(currentTheme.isDark) }
             var appLanguage by remember { mutableStateOf(AppLanguage.ENGLISH) }
 
+            var isGuestMode by remember { mutableStateOf(prefs.getBoolean("guest_mode_enabled", false)) }
+
             MyWalletTheme(appTheme = currentTheme, darkTheme = isDarkTheme) {
                 CompositionLocalProvider(LocalAppLanguage provides appLanguage) {
                     var showSplash by remember { mutableStateOf(true) }
@@ -204,16 +206,29 @@ class MainActivity : ComponentActivity() {
                     ) { isSplash ->
                         if (isSplash) {
                             SplashScreen(onSplashFinished = { showSplash = false })
-                        } else if (currentUser == null) {
-                            AuthScreen(onAuthSuccess = {
-                                val user = Firebase.auth.currentUser ?: auth?.currentUser
-                                Log.d("MainActivity", "Google sign-in succeeded, entering Dashboard directly: ${user?.uid}")
-                                currentUser = user
-                            })
+                        } else if (currentUser == null && !isGuestMode) {
+                            AuthScreen(
+                                onAuthSuccess = {
+                                    val user = Firebase.auth.currentUser ?: auth?.currentUser
+                                    Log.d("MainActivity", "Google sign-in succeeded, entering Dashboard directly: ${user?.uid}")
+                                    isGuestMode = false
+                                    prefs.edit().putBoolean("guest_mode_enabled", false).apply()
+                                    currentUser = user
+                                },
+                                onExploreAsGuest = {
+                                    isGuestMode = true
+                                    prefs.edit().putBoolean("guest_mode_enabled", true).apply()
+                                },
+                                onToggleDarkTheme = { dark ->
+                                    isDarkTheme = dark
+                                    currentTheme = if (dark) AppTheme.CYBER_NEON else AppTheme.FROSTED_PEARL
+                                    prefs.edit().putString("selected_theme", currentTheme.id).apply()
+                                }
+                            )
                         } else {
                             // Direct navigation into MainWalletApp with strictly NO PIN verification screen
                             MainWalletApp(
-                                currentUserId = currentUser!!.uid,
+                                currentUserId = currentUser?.uid ?: "guest_local",
                                 isDarkTheme = isDarkTheme,
                                 currentTheme = currentTheme,
                                 appLanguage = appLanguage,
@@ -230,6 +245,8 @@ class MainActivity : ComponentActivity() {
                                 onToggleLanguage = { appLanguage = it },
                                 onSignOut = {
                                     signOut(this@MainActivity) {
+                                        isGuestMode = false
+                                        prefs.edit().putBoolean("guest_mode_enabled", false).apply()
                                         currentUser = null
                                     }
                                 }

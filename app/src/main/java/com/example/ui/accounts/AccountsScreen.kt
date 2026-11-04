@@ -91,6 +91,7 @@ import com.example.ui.theme.ColorRocket
 import com.example.ui.theme.DarkNavy
 import com.example.ui.theme.DeepBlack
 import com.example.ui.theme.ExpenseRed
+import com.example.ui.theme.IncomeGreen
 import com.example.ui.theme.LocalAppTheme
 import com.example.ui.theme.PremiumBlue
 import com.example.ui.theme.PremiumPink

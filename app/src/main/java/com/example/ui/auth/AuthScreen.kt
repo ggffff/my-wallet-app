@@ -10,9 +10,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -20,15 +17,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,9 +30,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -48,29 +40,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,22 +61,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -104,13 +82,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import com.example.R
-import com.example.ui.theme.BrandGlow
-import com.example.ui.theme.BrandPrimary
-import com.example.ui.theme.DarkNavy
-import com.example.ui.theme.DeepBlack
-import com.example.ui.theme.GlowBlue
-import com.example.ui.theme.IncomeGreen
-import com.example.ui.theme.PureWhite
+import com.example.ui.theme.LocalAppTheme
 import com.example.util.AppSignatureHelper
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -122,43 +94,9 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.sin
-
-private data class UniversalStar(
-    val xRatio: Float,
-    val yRatio: Float,
-    val sizeDp: Float,
-    val baseAlpha: Float,
-    val pulseRange: Float,
-    val speedFactor: Float,
-    val phase: Float
-)
-
-private val universalStars = listOf(
-    UniversalStar(0.12f, 0.15f, 1.6f, 0.22f, 0.12f, 0.8f, 0.3f),
-    UniversalStar(0.28f, 0.08f, 2.2f, 0.28f, 0.14f, 1.1f, 1.2f),
-    UniversalStar(0.85f, 0.12f, 1.4f, 0.20f, 0.10f, 0.7f, 2.4f),
-    UniversalStar(0.72f, 0.22f, 2.0f, 0.26f, 0.13f, 1.0f, 0.9f),
-    UniversalStar(0.06f, 0.32f, 1.2f, 0.18f, 0.09f, 0.6f, 3.1f),
-    UniversalStar(0.92f, 0.36f, 1.8f, 0.24f, 0.12f, 0.9f, 4.2f),
-    UniversalStar(0.18f, 0.44f, 1.5f, 0.21f, 0.11f, 0.75f, 5.0f),
-    UniversalStar(0.82f, 0.48f, 2.4f, 0.30f, 0.15f, 1.2f, 1.7f),
-    UniversalStar(0.10f, 0.58f, 1.3f, 0.18f, 0.10f, 0.65f, 2.8f),
-    UniversalStar(0.88f, 0.62f, 1.9f, 0.25f, 0.13f, 0.95f, 3.9f),
-    UniversalStar(0.22f, 0.70f, 1.7f, 0.23f, 0.12f, 0.85f, 0.5f),
-    UniversalStar(0.76f, 0.74f, 2.1f, 0.27f, 0.14f, 1.05f, 2.1f),
-    UniversalStar(0.08f, 0.82f, 1.4f, 0.19f, 0.10f, 0.7f, 4.6f),
-    UniversalStar(0.90f, 0.86f, 1.6f, 0.22f, 0.11f, 0.8f, 1.4f),
-    UniversalStar(0.35f, 0.92f, 2.0f, 0.26f, 0.13f, 1.0f, 3.3f),
-    UniversalStar(0.65f, 0.94f, 1.5f, 0.20f, 0.11f, 0.75f, 5.8f),
-    UniversalStar(0.48f, 0.18f, 1.8f, 0.25f, 0.12f, 0.9f, 0.8f),
-    UniversalStar(0.55f, 0.80f, 1.6f, 0.21f, 0.11f, 0.85f, 2.7f)
-)
 
 private fun Context.findActivity(): Activity? {
     var current = this
@@ -169,369 +107,397 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
-private fun copyToClipboard(context: Context, label: String, text: String) {
-    try {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        val clip = ClipData.newPlainText(label, text)
-        clipboard?.setPrimaryClip(clip)
-        Toast.makeText(context, "$label copied to clipboard", Toast.LENGTH_SHORT).show()
-    } catch (e: Exception) {
-        Log.e("Auth", "Failed to copy to clipboard", e)
-    }
-}
+private data class BackgroundParticle(
+    val xRatio: Float,
+    val yRatio: Float,
+    val sizeDp: Float,
+    val isDiamond: Boolean,
+    val speed: Float,
+    val phase: Float
+)
 
+private val particles = listOf(
+    BackgroundParticle(0.10f, 0.16f, 16f, true, 0.8f, 0.2f),
+    BackgroundParticle(0.85f, 0.14f, 14f, true, 0.9f, 1.4f),
+    BackgroundParticle(0.08f, 0.38f, 12f, true, 0.7f, 2.6f),
+    BackgroundParticle(0.92f, 0.36f, 14f, true, 1.1f, 3.2f),
+    BackgroundParticle(0.38f, 0.92f, 16f, true, 0.85f, 4.0f),
+    BackgroundParticle(0.96f, 0.76f, 18f, true, 0.95f, 5.1f),
+    BackgroundParticle(0.05f, 0.88f, 10f, true, 0.75f, 0.9f),
+    BackgroundParticle(0.42f, 0.12f, 4f, false, 0.6f, 1.8f),
+    BackgroundParticle(0.88f, 0.26f, 5f, false, 0.8f, 3.5f),
+    BackgroundParticle(0.09f, 0.48f, 4.5f, false, 0.7f, 4.8f),
+    BackgroundParticle(0.93f, 0.58f, 5.5f, false, 1.0f, 2.2f),
+    BackgroundParticle(0.18f, 0.74f, 4f, false, 0.75f, 0.5f),
+    BackgroundParticle(0.82f, 0.82f, 5f, false, 0.9f, 3.8f)
+)
+
+/**
+ * Premium, minimal fintech Login Page strictly adhering to the user reference design.
+ * Includes ONLY:
+ * - Top-right Light/Dark mode toggle (Sun / Moon)
+ * - My Wallet 3D App Logo with glowing orbital pedestal
+ * - App Name: "My Wallet" ("My" in white/dark slate, "Wallet" in electric cyan/blue)
+ * - Tagline: "Your Smart Personal Finance Companion"
+ * - Official "Sign in with Google" pill button (with vertical divider)
+ * - "OR" divider line
+ * - "Continue as Guest" pill button with avatar icon
+ * - Lightweight, battery-friendly animated background waves & glowing particles
+ */
 @Composable
 fun AuthScreen(
-    onAuthSuccess: () -> Unit
+    onAuthSuccess: () -> Unit,
+    onExploreAsGuest: () -> Unit = {},
+    onToggleDarkTheme: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
 
-    val density = LocalDensity.current
+    val isDark = LocalAppTheme.current.isDark
+    val scrollState = rememberScrollState()
 
-    // =========================================================================
-    // LOGO DESIGN MOTION SYSTEM
-    // Subtle, minimalist ("Sample"), professional studio logo reveal & idle motion.
-    // Zero harsh highlights, zero bright glaring sweeps, zero bounding circles.
-    // =========================================================================
+    // Smooth, battery-friendly ambient animations for background waves and particles
+    val infiniteTransition = rememberInfiniteTransition(label = "auth_bg_transition")
 
-    // 1. Studio Logo Reveal (Smooth entrance on load)
-    val entranceScale = remember { Animatable(0.88f) }
-    val entranceAlpha = remember { Animatable(0f) }
-    val entranceTiltX = remember { Animatable(10f) }
-    val textAlpha = remember { Animatable(0f) }
-    val textOffsetY = remember { Animatable(12f) }
-
-    LaunchedEffect(Unit) {
-        // Logo reveals with smooth eased curve
-        launch {
-            entranceAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 850, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f))
-            )
-        }
-        launch {
-            entranceScale.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 950, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f))
-            )
-        }
-        launch {
-            entranceTiltX.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 950, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f))
-            )
-        }
-
-        // Title reveals in staggered coordination
-        delay(250)
-        launch {
-            textAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)
-            )
-        }
-        launch {
-            textOffsetY.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)
-            )
-        }
-    }
-
-    // 2. Idle Ambient Logo Float & Universal Style Motion System
-    val logoMotion = rememberInfiniteTransition(label = "logo_motion_transition")
-
-    // Universal Style: Slow continuous stardust drift cycle (16s smooth loop)
-    val celestialCycle by logoMotion.animateFloat(
+    val wavePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 1f,
+        targetValue = 6.28318f, // 2 * PI
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 16000, easing = LinearEasing),
+            animation = tween(durationMillis = 8500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "celestial_cycle"
+        label = "wave_phase"
     )
 
-    // Universal Style: Celestial orbital trajectory cycle (11s gentle 360-degree orbit)
-    val orbitProgress by logoMotion.animateFloat(
+    val particleDrift by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 11000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "orbit_progress"
+        label = "particle_drift"
     )
 
-    // Slow, silky levitation (3.8s calm breath cycle)
-    val floatY by logoMotion.animateFloat(
-        initialValue = -5f,
-        targetValue = 5f,
+    val glowPulse by infiniteTransition.animateFloat(
+        initialValue = 0.55f,
+        targetValue = 0.95f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3800, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 4200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "logo_float_y"
+        label = "glow_pulse"
     )
-
-    // Micro 3D perspective pitch (giving physical studio weight)
-    val tiltY by logoMotion.animateFloat(
-        initialValue = -1.8f,
-        targetValue = 1.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "logo_tilt_y"
-    )
-
-    val tiltZ by logoMotion.animateFloat(
-        initialValue = -0.8f,
-        targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "logo_tilt_z"
-    )
-
-    // Synchronized studio contact shadow parameters
-    val normalizedFloat = (floatY + 5f) / 10f // 0f at apex, 1f at lowest
-    val shadowScaleX = 0.94f + (0.10f * (1f - normalizedFloat))
-    val shadowAlpha = 0.22f + (0.14f * normalizedFloat)
 
     Surface(
         modifier = Modifier
             .fillMaxSize()
             .testTag("auth_screen"),
-        color = Color(0xFF030712) // Deepest luxury obsidian
+        color = if (isDark) Color(0xFF030718) else Color(0xFFF8FAFC)
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             // =========================================================================
-            // 1. BESPOKE LUXURY FINTECH BACKGROUND (Universal Style Cosmic Stardust, No Harsh Highlights)
+            // 1. LIGHTWEIGHT ANIMATED BACKGROUND (Waves, Glows & Soft Floating Particles)
             // =========================================================================
-            Image(
-                painter = painterResource(id = R.drawable.img_auth_luxury_bg),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Deep luxury atmospheric vignette & subtle universal stardust particles
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
 
-                // Pure Obsidian Scrim: Keeps the background calm and non-distracting
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        0.0f to Color(0xFF030712).copy(alpha = 0.78f),
-                        0.25f to Color(0xFF040A18).copy(alpha = 0.50f),
-                        0.60f to Color(0xFF040814).copy(alpha = 0.55f),
-                        1.0f to Color(0xFF020409).copy(alpha = 0.94f)
+                // Base Background Gradient
+                val baseGradient = if (isDark) {
+                    Brush.verticalGradient(
+                        0.0f to Color(0xFF020617),
+                        0.35f to Color(0xFF050E28),
+                        0.70f to Color(0xFF03081C),
+                        1.0f to Color(0xFF010410)
                     )
-                )
-
-                // Soft, ultra-subtle ambient studio vignette (No bright highlight or hotspot)
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0xFF020408).copy(alpha = 0.40f),
-                            Color(0xFF010205).copy(alpha = 0.70f)
-                        ),
-                        center = Offset(w * 0.5f, h * 0.45f),
-                        radius = w * 0.85f
+                } else {
+                    Brush.verticalGradient(
+                        0.0f to Color(0xFFF8FAFC),
+                        0.40f to Color(0xFFEFF6FF),
+                        0.80f to Color(0xFFF1F5F9),
+                        1.0f to Color(0xFFE2E8F0)
                     )
-                )
+                }
+                drawRect(brush = baseGradient)
 
-                // Universal Style: Gentle stardust drifting across deep space ("Halka" & calm)
-                universalStars.forEach { star ->
-                    val starCycle = (celestialCycle + star.phase / (2 * PI.toFloat())) % 1.0f
-                    val starY = ((star.yRatio - starCycle * star.speedFactor * 0.10f) % 1.0f + 1.0f) % 1.0f * h
-                    val starX = star.xRatio * w
-                    val starAlpha = (star.baseAlpha + star.pulseRange * sin((celestialCycle * 2 * PI.toFloat() + star.phase))).coerceIn(0.06f, 0.38f)
-                    val starRadius = star.sizeDp.dp.toPx()
-
+                // Soft Corner Glow Accents
+                if (isDark) {
+                    // Top-Left Blue Glow
                     drawCircle(
-                        color = Color(0xFFD8E2FE).copy(alpha = starAlpha),
-                        radius = starRadius,
-                        center = Offset(starX, starY)
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF0070F3).copy(alpha = 0.22f * glowPulse), Color.Transparent),
+                            center = Offset(w * 0.05f, h * 0.08f),
+                            radius = w * 0.55f
+                        ),
+                        radius = w * 0.55f,
+                        center = Offset(w * 0.05f, h * 0.08f)
                     )
+                    // Top-Right Cyan Glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF00D2FF).copy(alpha = 0.18f * glowPulse), Color.Transparent),
+                            center = Offset(w * 0.92f, h * 0.12f),
+                            radius = w * 0.50f
+                        ),
+                        radius = w * 0.50f,
+                        center = Offset(w * 0.92f, h * 0.12f)
+                    )
+                    // Bottom-Right Ambient Wave Glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF0055FE).copy(alpha = 0.28f * glowPulse), Color.Transparent),
+                            center = Offset(w * 0.85f, h * 0.92f),
+                            radius = w * 0.65f
+                        ),
+                        radius = w * 0.65f,
+                        center = Offset(w * 0.85f, h * 0.92f)
+                    )
+                    // Bottom-Left Cyan Wave Glow
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF00E5FF).copy(alpha = 0.20f * glowPulse), Color.Transparent),
+                            center = Offset(w * 0.12f, h * 0.95f),
+                            radius = w * 0.55f
+                        ),
+                        radius = w * 0.55f,
+                        center = Offset(w * 0.12f, h * 0.95f)
+                    )
+                } else {
+                    // Soft light-mode blue glows
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF93C5FD).copy(alpha = 0.18f), Color.Transparent),
+                            center = Offset(w * 0.10f, h * 0.10f),
+                            radius = w * 0.50f
+                        ),
+                        radius = w * 0.50f,
+                        center = Offset(w * 0.10f, h * 0.10f)
+                    )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF60A5FA).copy(alpha = 0.16f), Color.Transparent),
+                            center = Offset(w * 0.90f, h * 0.90f),
+                            radius = w * 0.55f
+                        ),
+                        radius = w * 0.55f,
+                        center = Offset(w * 0.90f, h * 0.90f)
+                    )
+                }
+
+                // Smooth Flowing Curves (Wave Ribbons matching reference)
+                val waveShift = sin(wavePhase.toDouble()).toFloat() * 14f
+
+                // Top Wave Ribbon
+                val topWave = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(w, 0f)
+                    lineTo(w, h * 0.18f + waveShift)
+                    cubicTo(
+                        w * 0.65f, h * 0.24f - waveShift,
+                        w * 0.35f, h * 0.08f + waveShift,
+                        0f, h * 0.16f - waveShift
+                    )
+                    close()
+                }
+                drawPath(
+                    path = topWave,
+                    brush = Brush.linearGradient(
+                        colors = if (isDark) listOf(
+                            Color(0xFF0070F3).copy(alpha = 0.22f),
+                            Color(0xFF00E5FF).copy(alpha = 0.12f),
+                            Color.Transparent
+                        ) else listOf(
+                            Color(0xFF93C5FD).copy(alpha = 0.22f),
+                            Color(0xFFBAE6FD).copy(alpha = 0.12f),
+                            Color.Transparent
+                        )
+                    )
+                )
+
+                // Bottom Wave Ribbon
+                val bottomWave = Path().apply {
+                    moveTo(0f, h)
+                    lineTo(w, h)
+                    lineTo(w, h * 0.88f - waveShift)
+                    cubicTo(
+                        w * 0.70f, h * 0.80f + waveShift,
+                        w * 0.30f, h * 0.96f - waveShift,
+                        0f, h * 0.86f + waveShift
+                    )
+                    close()
+                }
+                drawPath(
+                    path = bottomWave,
+                    brush = Brush.linearGradient(
+                        colors = if (isDark) listOf(
+                            Color(0xFF0052D4).copy(alpha = 0.32f),
+                            Color(0xFF00D2FF).copy(alpha = 0.20f),
+                            Color.Transparent
+                        ) else listOf(
+                            Color(0xFF60A5FA).copy(alpha = 0.20f),
+                            Color(0xFF93C5FD).copy(alpha = 0.15f),
+                            Color.Transparent
+                        )
+                    )
+                )
+
+                // Floating Glowing Stardust & Diamond Particles
+                particles.forEach { p ->
+                    val progress = (particleDrift * p.speed + p.phase) % 1.0f
+                    val y = ((p.yRatio - progress * 0.08f) % 1.0f + 1.0f) % 1.0f * h
+                    val x = p.xRatio * w + sin((progress * 6.28f + p.phase).toDouble()).toFloat() * 6f
+                    val alpha = (0.25f + 0.35f * sin((progress * 6.28f + p.phase).toDouble()).toFloat()).coerceIn(0.10f, 0.65f)
+
+                    val particleColor = if (isDark) {
+                        Color(0xFF60A5FA).copy(alpha = alpha)
+                    } else {
+                        Color(0xFF3B82F6).copy(alpha = alpha * 0.75f)
+                    }
+
+                    if (p.isDiamond) {
+                        val dSize = p.sizeDp.dp.toPx()
+                        rotate(degrees = 45f, pivot = Offset(x, y)) {
+                            drawRoundRect(
+                                color = particleColor,
+                                topLeft = Offset(x - dSize / 2f, y - dSize / 2f),
+                                size = androidx.compose.ui.geometry.Size(dSize, dSize),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                            )
+                        }
+                    } else {
+                        drawCircle(
+                            color = particleColor,
+                            radius = (p.sizeDp / 2f).dp.toPx(),
+                            center = Offset(x, y)
+                        )
+                    }
                 }
             }
 
             // =========================================================================
-            // 2. FOREGROUND: Logo Design Presentation (Universal Orbit -> 3D Logo -> App Name -> Sign In)
+            // 2. FOREGROUND: CLEAN MINIMAL FINTECH CONTENT (Strictly as per Reference)
             // =========================================================================
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .statusBarsPadding()
                     .navigationBarsPadding()
-                    .padding(start = 28.dp, end = 28.dp, top = 56.dp, bottom = 125.dp),
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top balance spacer
-                Spacer(modifier = Modifier.height(24.dp))
+                // Top Row: Compact Theme Toggle (Sun / Moon) at Top-Right Corner
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, end = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        onClick = { onToggleDarkTheme(!isDark) },
+                        shape = CircleShape,
+                        color = if (isDark) Color(0xFF0F1E40).copy(alpha = 0.90f) else Color.White,
+                        border = BorderStroke(1.dp, if (isDark) Color(0xFF1E3A8A) else Color(0xFFCBD5E1)),
+                        shadowElevation = if (isDark) 0.dp else 3.dp,
+                        modifier = Modifier
+                            .size(42.dp)
+                            .testTag("auth_theme_toggle")
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                imageVector = if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                contentDescription = if (isDark) "Switch to Light Mode" else "Switch to Dark Mode",
+                                tint = if (isDark) Color(0xFFFBBF24) else Color(0xFF1E293B),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
 
-                // Center: Pure 3D Logo Presentation with Universal Celestial Orbit & Studio Shadow
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Center Block: 3D App Logo, "My Wallet" Title, Tagline
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    val orbitAngle = (orbitProgress * 2 * PI).toFloat()
-                    val isFrontOrb = sin(orbitAngle) >= 0f
-                    val tiltRad = (-15.0 * PI / 180.0).toFloat()
-                    val cosTilt = cos(tiltRad)
-                    val sinTilt = sin(tiltRad)
-                    val rx = with(density) { 92.dp.toPx() }
-                    val ry = with(density) { 36.dp.toPx() }
-
-                    val localX = rx * cos(orbitAngle)
-                    val localY = ry * sin(orbitAngle)
-                    val orbRelX = localX * cosTilt - localY * sinTilt
-                    val orbRelY = localX * sinTilt + localY * cosTilt
-
-                    // Combined Universal System Container
+                    // 3D Wallet Logo with glowing neon orbital pedestal
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(width = 240.dp, height = 180.dp)
-                            .graphicsLayer {
-                                scaleX = entranceScale.value
-                                scaleY = entranceScale.value
-                                alpha = entranceAlpha.value
-                            }
+                            .fillMaxWidth()
+                            .height(230.dp)
                     ) {
-                        // Background Orbit Trajectory & back satellite orb (behind logo)
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val cx = size.width / 2f
-                            val cy = size.height / 2f
-
-                            // Delicate celestial orbital ellipse (soft stardust dashes, low opacity)
-                            rotate(degrees = -15f, pivot = Offset(cx, cy)) {
-                                drawOval(
-                                    color = Color(0xFF60A5FA).copy(alpha = 0.16f),
-                                    topLeft = Offset(cx - rx, cy - ry),
-                                    size = androidx.compose.ui.geometry.Size(rx * 2f, ry * 2f),
-                                    style = Stroke(
-                                        width = 1.dp.toPx(),
-                                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 8f))
-                                    )
-                                )
-                            }
-
-                            // Satellite particle passing behind the 3D wallet
-                            if (!isFrontOrb) {
-                                val centerOrb = Offset(cx + orbRelX, cy + orbRelY)
-                                drawCircle(
-                                    color = Color(0xFF60A5FA).copy(alpha = 0.18f),
-                                    radius = 5.dp.toPx(),
-                                    center = centerOrb
-                                )
-                                drawCircle(
-                                    color = Color(0xFFD8E2FE).copy(alpha = 0.38f),
-                                    radius = 2.2.dp.toPx(),
-                                    center = centerOrb
-                                )
-                            }
-                        }
-
-                        // Floating 3D Wallet Logo (Subtle studio motion, clean unclipped logo)
-                        Box(
-                            contentAlignment = Alignment.Center,
+                        Image(
+                            painter = painterResource(id = R.drawable.img_wallet_3d_logo),
+                            contentDescription = "My Wallet 3D Logo",
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .graphicsLayer {
-                                    rotationX = entranceTiltX.value
-                                    translationY = floatY * density.density
-                                    rotationY = tiltY
-                                    rotationZ = tiltZ
-                                    cameraDistance = 14f * density.density
-                                }
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.app_icon_fg),
-                                contentDescription = "My Wallet Logo",
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.size(150.dp)
-                            )
-                        }
-
-                        // Foreground Orbit Satellite particle (passing in front of the 3D wallet)
-                        if (isFrontOrb) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val cx = size.width / 2f
-                                val cy = size.height / 2f
-                                val centerOrb = Offset(cx + orbRelX, cy + orbRelY)
-
-                                // Gentle stardust halo (soft, zero harsh glare)
-                                drawCircle(
-                                    color = Color(0xFF93C5FD).copy(alpha = 0.28f),
-                                    radius = 6.dp.toPx(),
-                                    center = centerOrb
-                                )
-                                // Soft celestial stardust core
-                                drawCircle(
-                                    color = Color(0xFFFFFFFF).copy(alpha = 0.60f),
-                                    radius = 2.4.dp.toPx(),
-                                    center = centerOrb
-                                )
-                            }
-                        }
+                                .fillMaxWidth(0.92f)
+                                .height(230.dp)
+                                .testTag("my_wallet_3d_logo")
+                        )
                     }
 
-                    // Soft studio contact shadow beneath the 3D wallet logo
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .size(width = 110.dp, height = 12.dp)
-                            .graphicsLayer {
-                                scaleX = shadowScaleX * entranceAlpha.value
-                                scaleY = entranceAlpha.value
-                                alpha = shadowAlpha * entranceAlpha.value
-                            }
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        Color(0xFF000000).copy(alpha = 0.60f),
-                                        Color(0xFF000000).copy(alpha = 0.20f),
-                                        Color.Transparent
-                                    )
-                                ),
-                                shape = CircleShape
-                            )
-                    )
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    Spacer(modifier = Modifier.height(22.dp))
+                    // App Name: "My" (white/dark) + "Wallet" (cyan/blue)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.testTag("app_title_row")
+                    ) {
+                        Text(
+                            text = "My ",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 38.sp,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = if (isDark) Color.White else Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = "Wallet",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 38.sp,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = Color(0xFF38BDF8) // Electric Cyan/Blue matching reference
+                        )
+                    }
 
-                    // App Name: ONLY "My Wallet" with smooth coordinated entrance
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Tagline
                     Text(
-                        text = "My Wallet",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 30.sp,
-                            letterSpacing = 0.8.sp
+                        text = "Your Smart Personal Finance Companion",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 15.sp,
+                            letterSpacing = 0.1.sp
                         ),
-                        color = Color.White,
-                        modifier = Modifier
-                            .graphicsLayer {
-                                alpha = textAlpha.value
-                                translationY = textOffsetY.value * density.density
-                            }
+                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("app_tagline")
                     )
                 }
 
-                // Bottom: ONLY "Sign in with Google" Button
+                Spacer(modifier = Modifier.height(42.dp))
+
+                // Bottom Block: Sign in with Google -> OR divider -> Continue as Guest
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // 1. Sign in with Google Button (Official Google Logo + Vertical Divider)
                     Surface(
                         onClick = {
                             if (!isLoading) {
@@ -555,25 +521,25 @@ fun AuthScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp)
+                            .height(56.dp)
                             .testTag("google_sign_in_button"),
-                        shape = RoundedCornerShape(27.dp),
+                        shape = RoundedCornerShape(28.dp),
                         color = Color.White,
-                        shadowElevation = 5.dp,
-                        border = BorderStroke(1.2.dp, Color(0xFFDADCE0)),
+                        shadowElevation = 4.dp,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         enabled = !isLoading
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 20.dp),
+                                .padding(horizontal = 22.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
                             if (isLoading) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
-                                    color = Color(0xFF3882F6),
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color(0xFF2563EB),
                                     strokeWidth = 2.5.dp
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -582,7 +548,7 @@ fun AuthScreen(
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 16.sp,
-                                        color = Color(0xFF1F1F1F)
+                                        color = Color(0xFF0F172A)
                                     )
                                 )
                             } else {
@@ -591,13 +557,19 @@ fun AuthScreen(
                                     contentDescription = "Google Logo",
                                     modifier = Modifier.size(24.dp)
                                 )
-                                Spacer(modifier = Modifier.width(14.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .height(26.dp)
+                                        .width(1.dp)
+                                        .background(Color(0xFFE2E8F0))
+                                )
                                 Text(
                                     text = "Sign in with Google",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 16.sp,
-                                        color = Color(0xFF1F1F1F),
+                                        color = Color(0xFF0F172A),
                                         letterSpacing = 0.2.sp
                                     )
                                 )
@@ -605,12 +577,83 @@ fun AuthScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // 2. OR Divider
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(1.dp)
+                                .background(if (isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1))
+                        )
+                        Text(
+                            text = "OR",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                letterSpacing = 1.5.sp
+                            ),
+                            color = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(1.dp)
+                                .background(if (isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1))
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // 3. Continue as Guest Button (Avatar Icon + Electric Blue Outline)
+                    Surface(
+                        onClick = onExploreAsGuest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("continue_as_guest_button"),
+                        shape = RoundedCornerShape(28.dp),
+                        color = if (isDark) Color(0xFF0A132C).copy(alpha = 0.85f) else Color.White,
+                        border = BorderStroke(2.dp, Color(0xFF0091FF)),
+                        shadowElevation = if (isDark) 0.dp else 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 22.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = if (isDark) Color.White else Color(0xFF0091FF),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Continue as Guest",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 16.sp,
+                                    letterSpacing = 0.2.sp
+                                ),
+                                color = if (isDark) Color.White else Color(0xFF0091FF)
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // Informative Dialog only appears if an authentication issue occurs
+        // Diagnostic / Error Dialog
         if (errorDialogMessage != null) {
             AlertDialog(
                 onDismissRequest = { errorDialogMessage = null },
@@ -618,7 +661,7 @@ fun AuthScreen(
                     Text(
                         text = "Sign-In Status",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 text = {
@@ -627,7 +670,7 @@ fun AuthScreen(
                             Text(
                                 text = errorDialogMessage ?: "",
                                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-                                color = Color(0xFFE2E8F0)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -635,7 +678,7 @@ fun AuthScreen(
                 confirmButton = {
                     Button(
                         onClick = { errorDialogMessage = null },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3882F6))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("OK", color = Color.White)
                     }
@@ -649,10 +692,10 @@ fun AuthScreen(
                             Toast.makeText(context, "Copied instructions to clipboard", Toast.LENGTH_SHORT).show()
                         }
                     ) {
-                        Text("Copy Details", color = Color(0xFF93C5FD))
+                        Text("Copy Details", color = MaterialTheme.colorScheme.primary)
                     }
                 },
-                containerColor = Color(0xFF0D1B3E),
+                containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
             )
         }
@@ -660,20 +703,15 @@ fun AuthScreen(
 }
 
 internal fun getWebClientId(context: Context): String? {
-    // 1. Dynamic reflection lookup on generated R.string class.
     try {
         val rClass = Class.forName("com.example.R\$string")
         val field = rClass.getField("default_web_client_id")
         val resId = field.getInt(null)
         if (resId != 0) {
             val clientId = context.getString(resId)
-            if (clientId.isNotBlank()) {
-                return clientId
-            }
+            if (clientId.isNotBlank()) return clientId
         }
-    } catch (_: Throwable) {
-        // Fall through to package lookup
-    }
+    } catch (_: Throwable) {}
 
     try {
         val rClass = Class.forName("${context.packageName}.R\$string")
@@ -681,44 +719,31 @@ internal fun getWebClientId(context: Context): String? {
         val resId = field.getInt(null)
         if (resId != 0) {
             val clientId = context.getString(resId)
-            if (clientId.isNotBlank()) {
-                return clientId
-            }
+            if (clientId.isNotBlank()) return clientId
         }
-    } catch (_: Throwable) {
-        // Fall through to Resources.getIdentifier
-    }
+    } catch (_: Throwable) {}
 
-    // 2. Resource identifier lookup via application package name
     try {
         val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
         if (resId != 0) {
             val clientId = context.getString(resId)
-            if (clientId.isNotBlank()) {
-                return clientId
-            }
+            if (clientId.isNotBlank()) return clientId
         }
     } catch (_: Throwable) {}
 
-    // 3. Resource identifier lookup via namespace "com.example"
     try {
         val resId = context.resources.getIdentifier("default_web_client_id", "string", "com.example")
         if (resId != 0) {
             val clientId = context.getString(resId)
-            if (clientId.isNotBlank()) {
-                return clientId
-            }
+            if (clientId.isNotBlank()) return clientId
         }
     } catch (_: Throwable) {}
 
-    // 4. Resource identifier lookup via alternative resource name "web_client_id"
     try {
         val resId = context.resources.getIdentifier("web_client_id", "string", context.packageName)
         if (resId != 0) {
             val clientId = context.getString(resId)
-            if (clientId.isNotBlank()) {
-                return clientId
-            }
+            if (clientId.isNotBlank()) return clientId
         }
     } catch (_: Throwable) {}
 
@@ -742,7 +767,7 @@ private fun signInWithGoogle(
     val clientId = getWebClientId(context)
     if (clientId.isNullOrBlank()) {
         Log.e("Auth", "Web Client ID (default_web_client_id) not found")
-        onError("Google Sign-In configuration missing: Web OAuth Client ID (default_web_client_id) was not found in google-services resources. Please ensure Google Sign-In is enabled in Firebase Console and a valid google-services.json is present.")
+        onError("Google Sign-In configuration missing: Web OAuth Client ID was not found in google-services resources. You can still use the app by tapping 'Continue as Guest'.")
         return
     }
 
@@ -772,8 +797,6 @@ private fun signInWithGoogle(
         return
     }
 
-    // Crucial: Use Activity's lifecycleScope so that transitioning away from AuthScreen upon auth success
-    // does not cancel the sign-in coroutine in mid-flight with LeftCompositionCancellationException!
     val targetScope = (activity as? ComponentActivity)?.lifecycleScope ?: scope
     targetScope.launch {
         try {
@@ -790,7 +813,6 @@ private fun signInWithGoogle(
                     try {
                         GoogleIdTokenCredential.createFrom(credential.data).idToken
                     } catch (e: Exception) {
-                        Log.w("Auth", "GoogleIdTokenCredential.createFrom failed, reading bundle directly", e)
                         credential.data.getString("com.google.android.libraries.identity.googleid.BUNDLE_KEY_ID_TOKEN")
                             ?: credential.data.getString("id_token")
                     }
@@ -799,7 +821,6 @@ private fun signInWithGoogle(
                     try {
                         GoogleIdTokenCredential.createFrom(credential.data).idToken
                     } catch (e: Exception) {
-                        Log.w("Auth", "Fallback bundle lookup for custom credential: ${credential.type}", e)
                         credential.data.getString("com.google.android.libraries.identity.googleid.BUNDLE_KEY_ID_TOKEN")
                             ?: credential.data.getString("id_token")
                     }
@@ -813,7 +834,7 @@ private fun signInWithGoogle(
                 return@launch
             }
 
-            Log.d("Auth", "Google ID token obtained (token length: ${idToken.length}). Signing into Firebase...")
+            Log.d("Auth", "Google ID token obtained. Signing into Firebase...")
             val authCredential = GoogleAuthProvider.getCredential(idToken, null)
             val authResult = Firebase.auth.signInWithCredential(authCredential).await()
             val user = authResult.user ?: Firebase.auth.currentUser
@@ -833,7 +854,6 @@ private fun signInWithGoogle(
             val currentSha256 = runtimeSig?.second ?: AppSignatureHelper.EXPECTED_SHA256
             val matchesExpected = currentSha1.equals(AppSignatureHelper.EXPECTED_SHA1, ignoreCase = true)
 
-            // If user closed/dismissed the bottom sheet without selecting an account
             if (rawMsg.contains("USER_CANCELED", ignoreCase = true) || (rawMsg.contains("cancel", ignoreCase = true) && !rawMsg.contains("10"))) {
                 onCancelled()
                 return@launch
@@ -845,87 +865,45 @@ private fun signInWithGoogle(
                     append("⚠️ SIGNING KEY MISMATCH DETECTED:\n")
                     append("This installed APK was signed with:\nSHA-1: $currentSha1\n\n")
                     append("Expected in google-services.json:\nSHA-1: ${AppSignatureHelper.EXPECTED_SHA1}\n\n")
-                    append("Action Required: Please register this APK's SHA-1 ($currentSha1) in Firebase Console under Project Settings > Your apps.\n")
+                    append("Action Required: Register this APK's SHA-1 in Firebase Console under Project Settings.\n")
                 } else {
-                    append("Important: If the account picker closed immediately after you tapped your Gmail account, Google Play Services rejected the signing certificate (Status Code 10: Developer Error).\n\n")
-                    append("How to resolve in Firebase Console:\n")
-                    append("1. Open Firebase Console -> Project Settings -> General -> Your apps -> com.aistudio.mywallet.bdtnas\n")
+                    append("Tip: If running on an emulator without a configured Google account, tap 'Continue as Guest' to explore the app directly.\n\n")
+                    append("To enable Google Sign-In in Firebase Console:\n")
+                    append("1. Open Firebase Console -> Project Settings -> Your apps -> com.aistudio.mywallet.bdtnas\n")
                     append("2. Add SHA-1:\n   $currentSha1\n")
-                    append("3. Add SHA-256:\n   $currentSha256\n")
-                    append("4. In Authentication -> Sign-in method, ensure Google is Enabled.\n")
+                    append("3. In Authentication -> Sign-in method, ensure Google is Enabled.\n")
                 }
             }
             onError(detailMsg)
         } catch (e: CancellationException) {
-            // Normal coroutine cancellation when leaving composition or transitioning screens smoothly
             Log.d("Auth", "Google Sign-In coroutine cleanly finished or cancelled: ${e.message}")
         } catch (e: GetCredentialException) {
             Log.e("Auth", "GetCredentialException during Google Sign-In", e)
             val rawMsg = e.message ?: e.javaClass.simpleName
-            val runtimeSig = AppSignatureHelper.getAppSignature(context)
-            val currentSha1 = runtimeSig?.first ?: AppSignatureHelper.EXPECTED_SHA1
-            val currentSha256 = runtimeSig?.second ?: AppSignatureHelper.EXPECTED_SHA256
-
             val friendlyMsg = when {
                 rawMsg.contains("10") || rawMsg.contains("DeveloperError") ->
-                    "Google Play Services Developer Error (10): APK signing certificate is not recognized in Firebase Console.\n\nAdd both to Firebase Console:\nSHA-1: $currentSha1\nSHA-256: $currentSha256"
+                    "Google Play Services Developer Error (10): APK signing certificate not recognized in Firebase Console.\n\nYou can tap 'Continue as Guest' to use the app immediately!"
                 rawMsg.contains("16") || rawMsg.contains("Cannot find matching credential") ->
                     "Google Sign-In configuration error: Ensure Google provider is enabled in Firebase Authentication console."
-                rawMsg.contains("7") || rawMsg.contains("NETWORK", ignoreCase = true) ->
-                    "Network error: Unable to contact Google authentication servers. Please check your internet connection."
                 rawMsg.contains("NoCredentialException") ->
-                    "No Google account available or selected on this device."
+                    "No Google account found on this device. Tap 'Continue as Guest' to explore without login."
                 else ->
-                    "Google Sign-In failed: $rawMsg"
+                    "Google Sign-In note: $rawMsg\n(You can tap 'Continue as Guest' to enter directly)"
             }
             onError(friendlyMsg)
         } catch (e: FirebaseNetworkException) {
             Log.e("Auth", "Firebase network error", e)
-            onError("Network error: Could not reach Firebase servers. Please check your internet connection and try again.")
+            onError("Network error: Could not reach Firebase servers. Please check your internet connection or use Guest Mode.")
         } catch (e: FirebaseAuthInvalidCredentialsException) {
             Log.e("Auth", "Invalid Firebase credentials", e)
-            onError("Authentication error: The Google ID token could not be verified by Firebase. Ensure Google Sign-In is enabled in Firebase Console.")
+            onError("Authentication error: The Google ID token could not be verified by Firebase.")
         } catch (e: FirebaseAuthException) {
             Log.e("Auth", "Firebase Auth error [${e.errorCode}]", e)
-            val msg = e.localizedMessage ?: ""
-            val isInternal = e.errorCode == "ERROR_INTERNAL_ERROR" || msg.contains("internal error", ignoreCase = true)
-            val friendlyMsg = if (isInternal) {
-                buildString {
-                    append("⚠️ Firebase Authentication: Internal Error\n\n")
-                    append("Root Cause:\n")
-                    append("In Firebase project 'gen-lang-client-0425667793', Google Sign-In is either disabled or missing a Support Email in the Firebase Console.\n\n")
-                    append("Easy 30-Second Fix in Firebase Console:\n")
-                    append("1. Open: https://console.firebase.google.com/project/gen-lang-client-0425667793/authentication/providers\n")
-                    append("2. Under 'Sign-in providers', click 'Google'.\n")
-                    append("3. Turn the 'Enable' switch ON.\n")
-                    append("4. Select your Project support email from the dropdown.\n")
-                    append("5. Click 'Save'.\n\n")
-                    append("Once saved, tap 'Sign in with Google' again!")
-                }
-            } else {
-                "Firebase Authentication error (${e.errorCode}): ${e.localizedMessage ?: "Please try again"}"
-            }
-            onError(friendlyMsg)
+            onError("Firebase Authentication error (${e.errorCode}): ${e.localizedMessage ?: "Please try again or use Guest Mode"}")
         } catch (t: Throwable) {
-            if (t is CancellationException) {
-                Log.d("Auth", "Google Sign-In coroutine cancelled during screen transition: ${t.message}")
-                throw t
-            }
+            if (t is CancellationException) throw t
             Log.e("Auth", "Unexpected error during Google Sign-In", t)
-            val msg = t.localizedMessage ?: t.javaClass.simpleName
-            val isInternal = msg.contains("internal error", ignoreCase = true)
-            val friendlyMsg = if (isInternal) {
-                buildString {
-                    append("⚠️ Google Sign-In: Internal Error\n\n")
-                    append("Google Sign-In provider must be enabled with a Support Email in Firebase Console (project: gen-lang-client-0425667793).\n\n")
-                    append("Fix:\n")
-                    append("1. Open Firebase Console -> Build -> Authentication -> Sign-in method\n")
-                    append("2. Click 'Google' -> Enable -> Select support email -> Save\n")
-                }
-            } else {
-                "Sign in failed: $msg"
-            }
-            onError(friendlyMsg)
+            onError("Sign in note: ${t.localizedMessage ?: t.javaClass.simpleName}")
         }
     }
 }

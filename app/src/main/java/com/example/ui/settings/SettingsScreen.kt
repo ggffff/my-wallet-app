@@ -829,8 +829,9 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(10.dp))
 
         // ==========================================
-        // 5. Sign Out Button
+        // 5. Sign Out / Sign In Button
         // ==========================================
+        val isSignedIn = com.google.firebase.Firebase.auth.currentUser != null
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -843,8 +844,8 @@ fun SettingsScreen(
             Button(
                 onClick = onSignOut,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ExpenseRed.copy(alpha = 0.15f),
-                    contentColor = ExpenseRed
+                    containerColor = if (isSignedIn) ExpenseRed.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    contentColor = if (isSignedIn) ExpenseRed else MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
@@ -852,9 +853,16 @@ fun SettingsScreen(
                     .padding(14.dp)
                     .testTag("sign_out_button")
             ) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(
+                    imageVector = if (isSignedIn) Icons.AutoMirrored.Filled.Logout else Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(appString(StringKeys.SIGN_OUT), fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isSignedIn) appString(StringKeys.SIGN_OUT) else "গুগল অ্যাকাউন্ট দিয়ে লগইন করুন (Sign In)",
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
