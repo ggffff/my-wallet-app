@@ -8,6 +8,7 @@ import com.example.data.model.Budget
 import com.example.data.model.Debt
 import com.example.data.model.DebtType
 import com.example.data.model.Goal
+import com.example.data.model.HabitRoutine
 import com.example.data.model.Transaction
 import com.example.data.model.TransactionType
 import com.example.data.model.UserProfile
@@ -87,6 +88,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
         )
         private val guestBudgets = MutableStateFlow<List<Budget>>(emptyList())
         private val guestDebts = MutableStateFlow<List<Debt>>(emptyList())
+        private val guestHabits = MutableStateFlow<List<HabitRoutine>>(emptyList())
     }
 
     private val auth = Firebase.auth
@@ -973,6 +975,164 @@ class WalletRepository(private val db: FirebaseFirestore) {
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.DELETE, docRef.path)
             throw e
+        }
+    }
+
+    // --- Habits & Recurring Routine Logs ---
+    fun observeHabits(): Flow<List<HabitRoutine>> {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            return guestHabits
+        }
+        return callbackFlow {
+            val colRef = db.collection("users").document(uid).collection("habits")
+            val registration = colRef.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    handleFirestoreError(error, OperationType.LIST, colRef.path)
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                val list = snapshot?.documents?.mapNotNull { it.toObject(HabitRoutine::class.java) } ?: emptyList()
+                trySend(list)
+            }
+            awaitClose { registration.remove() }
+        }
+    }
+
+    suspend fun addHabit(habit: HabitRoutine) {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            val newHabit = habit.copy(id = "habit_" + System.currentTimeMillis())
+            guestHabits.value = guestHabits.value + newHabit
+            return
+        }
+        val colRef = db.collection("users").document(uid).collection("habits")
+        try {
+            val payload = hashMapOf<String, Any>(
+                "title" to habit.title,
+                "category" to habit.category,
+                "lastDoneDate" to habit.lastDoneDate,
+                "nextDueDate" to habit.nextDueDate,
+                "intervalDays" to habit.intervalDays,
+                "intervalLabel" to habit.intervalLabel,
+                "estimatedCost" to habit.estimatedCost,
+                "note" to habit.note,
+                "totalTimesCompleted" to habit.totalTimesCompleted,
+                "createdAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            colRef.add(payload).await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.CREATE, colRef.path)
+            throw e
+        }
+    }
+
+    suspend fun markHabitCompleted(habit: HabitRoutine, completionDate: String? = null, costAccountId: String? = null) {
+        val todayStr = completionDate?.ifBlank { null } ?: java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val nextDueStr = calculateNextDueDate(todayStr, habit.intervalDays)
+        val newCompletedCount = habit.totalTimesCompleted + 1
+
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            guestHabits.value = guestHabits.value.map {
+                if (it.id == habit.id) {
+                    it.copy(
+                        lastDoneDate = todayStr,
+                        nextDueDate = nextDueStr,
+                        totalTimesCompleted = newCompletedCount
+                    )
+                } else it
+            }
+            if (!costAccountId.isNullOrBlank() && habit.estimatedCost > 0) {
+                guestAccounts.value = guestAccounts.value.map {
+                    if (it.id == costAccountId) it.copy(balance = it.balance - habit.estimatedCost) else it
+                }
+            }
+            return
+        }
+
+        val habitDocRef = db.collection("users").document(uid).collection("habits").document(habit.id)
+        val accDocRef = if (!costAccountId.isNullOrBlank() && habit.estimatedCost > 0) {
+            db.collection("users").document(uid).collection("accounts").document(costAccountId)
+        } else null
+
+        try {
+            db.runTransaction { firestoreTxn ->
+                firestoreTxn.update(
+                    habitDocRef,
+                    "lastDoneDate", todayStr,
+                    "nextDueDate", nextDueStr,
+                    "totalTimesCompleted", newCompletedCount,
+                    "updatedAt", FieldValue.serverTimestamp()
+                )
+
+                if (accDocRef != null) {
+                    val accSnap = firestoreTxn.get(accDocRef)
+                    val accBal = accSnap.getDouble("balance") ?: 0.0
+                    firestoreTxn.update(accDocRef, "balance", accBal - habit.estimatedCost, "updatedAt", FieldValue.serverTimestamp())
+                }
+            }.await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, habitDocRef.path)
+            throw e
+        }
+    }
+
+    suspend fun editHabit(habit: HabitRoutine) {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            guestHabits.value = guestHabits.value.map { if (it.id == habit.id) habit else it }
+            return
+        }
+        val docRef = db.collection("users").document(uid).collection("habits").document(habit.id)
+        try {
+            val payload = hashMapOf<String, Any>(
+                "title" to habit.title,
+                "category" to habit.category,
+                "lastDoneDate" to habit.lastDoneDate,
+                "nextDueDate" to habit.nextDueDate,
+                "intervalDays" to habit.intervalDays,
+                "intervalLabel" to habit.intervalLabel,
+                "estimatedCost" to habit.estimatedCost,
+                "note" to habit.note,
+                "totalTimesCompleted" to habit.totalTimesCompleted,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            docRef.update(payload).await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, docRef.path)
+            throw e
+        }
+    }
+
+    suspend fun deleteHabit(habitId: String) {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            guestHabits.value = guestHabits.value.filterNot { it.id == habitId }
+            return
+        }
+        val docRef = db.collection("users").document(uid).collection("habits").document(habitId)
+        try {
+            docRef.delete().await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.DELETE, docRef.path)
+            throw e
+        }
+    }
+
+    private fun calculateNextDueDate(fromDateStr: String, intervalDays: Int): String {
+        return try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            val cal = java.util.Calendar.getInstance()
+            if (fromDateStr.isNotBlank()) {
+                val parsed = sdf.parse(fromDateStr)
+                if (parsed != null) cal.time = parsed
+            }
+            cal.add(java.util.Calendar.DAY_OF_YEAR, intervalDays.coerceAtLeast(1))
+            sdf.format(cal.time)
+        } catch (_: Exception) {
+            fromDateStr
         }
     }
 }

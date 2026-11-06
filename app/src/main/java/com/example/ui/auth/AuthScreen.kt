@@ -426,20 +426,105 @@ fun AuthScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // 3D Wallet Logo with glowing neon orbital pedestal
+                    // 3D Wallet Logo with glowing neon orbital pedestal ring matching reference
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(230.dp)
+                            .height(210.dp)
                     ) {
+                        // Glowing neon orbital pedestal rings
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(90.dp)
+                                .align(Alignment.BottomCenter)
+                        ) {
+                            val cx = size.width / 2f
+                            val cy = size.height * 0.52f
+                            val outerRadiusX = 135.dp.toPx()
+                            val outerRadiusY = 26.dp.toPx()
+                            val innerRadiusX = 102.dp.toPx()
+                            val innerRadiusY = 19.dp.toPx()
+
+                            if (isDark) {
+                                // Soft intense neon blue radial diffuse glow
+                                drawOval(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color(0xFF00E5FF).copy(alpha = 0.45f * glowPulse),
+                                            Color(0xFF0070F3).copy(alpha = 0.25f * glowPulse),
+                                            Color.Transparent
+                                        ),
+                                        center = Offset(cx, cy),
+                                        radius = outerRadiusX * 1.15f
+                                    ),
+                                    topLeft = Offset(cx - outerRadiusX * 1.1f, cy - outerRadiusY * 1.4f),
+                                    size = androidx.compose.ui.geometry.Size(outerRadiusX * 2.2f, outerRadiusY * 2.8f)
+                                )
+
+                                // Outer crisp neon ellipse ring
+                                drawOval(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color(0xFF0070F3).copy(alpha = 0.3f),
+                                            Color(0xFF00E5FF).copy(alpha = 0.95f),
+                                            Color(0xFF00D2FF).copy(alpha = 0.95f),
+                                            Color(0xFF0070F3).copy(alpha = 0.3f)
+                                        ),
+                                        startX = cx - outerRadiusX,
+                                        endX = cx + outerRadiusX
+                                    ),
+                                    topLeft = Offset(cx - outerRadiusX, cy - outerRadiusY),
+                                    size = androidx.compose.ui.geometry.Size(outerRadiusX * 2f, outerRadiusY * 2f),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
+                                )
+
+                                // Inner bright neon ellipse ring
+                                drawOval(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color(0xFF0052FE).copy(alpha = 0.2f),
+                                            Color(0xFF38BDF8).copy(alpha = 0.90f),
+                                            Color(0xFF00E5FF).copy(alpha = 0.90f),
+                                            Color(0xFF0052FE).copy(alpha = 0.2f)
+                                        ),
+                                        startX = cx - innerRadiusX,
+                                        endX = cx + innerRadiusX
+                                    ),
+                                    topLeft = Offset(cx - innerRadiusX, cy - innerRadiusY),
+                                    size = androidx.compose.ui.geometry.Size(innerRadiusX * 2f, innerRadiusY * 2f),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                )
+                            } else {
+                                // Soft light mode pedestal shadow & gentle blue ring
+                                drawOval(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color(0xFF60A5FA).copy(alpha = 0.25f),
+                                            Color.Transparent
+                                        ),
+                                        center = Offset(cx, cy),
+                                        radius = outerRadiusX
+                                    ),
+                                    topLeft = Offset(cx - outerRadiusX, cy - outerRadiusY),
+                                    size = androidx.compose.ui.geometry.Size(outerRadiusX * 2f, outerRadiusY * 2f)
+                                )
+                                drawOval(
+                                    color = Color(0xFF38BDF8).copy(alpha = 0.6f),
+                                    topLeft = Offset(cx - innerRadiusX, cy - innerRadiusY),
+                                    size = androidx.compose.ui.geometry.Size(innerRadiusX * 2f, innerRadiusY * 2f),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                )
+                            }
+                        }
+
                         Image(
                             painter = painterResource(id = R.drawable.img_wallet_3d_logo),
                             contentDescription = "My Wallet 3D Logo",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .fillMaxWidth(0.92f)
-                                .height(230.dp)
+                                .size(190.dp)
                                 .testTag("my_wallet_3d_logo")
                         )
                     }

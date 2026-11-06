@@ -131,3 +131,19 @@ data class Debt(
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
+
+@IgnoreExtraProperties
+data class HabitRoutine(
+    @DocumentId val id: String = "",
+    val title: String = "",
+    val category: String = "Personal",
+    val lastDoneDate: String = "",
+    val nextDueDate: String = "",
+    val intervalDays: Int = 30,
+    val intervalLabel: String = "1 Month",
+    val estimatedCost: Double = 0.0,
+    val note: String = "",
+    val totalTimesCompleted: Int = 1,
+    @ServerTimestamp val createdAt: Timestamp? = null,
+    @ServerTimestamp val updatedAt: Timestamp? = null
+)

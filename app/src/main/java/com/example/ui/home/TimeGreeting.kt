@@ -29,6 +29,7 @@ import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.WbTwilight
@@ -246,7 +247,7 @@ fun TimeBasedGreetingHeader(
     val currentHour = rememberCurrentHour(fixedHour)
     val phase = remember(currentHour) { getTimePhase(currentHour) }
     val greetingText = remember(phase, isBengali) { getTimeGreeting(phase, isBengali) }
-    val isDark = isSystemInDarkTheme()
+    val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
 
     val userName = remember(userProfile?.displayName) {
         userProfile?.displayName?.ifBlank { "NU Sifat" } ?: "NU Sifat"
@@ -260,13 +261,13 @@ fun TimeBasedGreetingHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Left side: Avatar + Greeting + Sun/Moon
+        // Left side: Avatar + Greeting + My Wallet Title
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.weight(1f)
         ) {
-            // Profile Avatar with Neon Glow Ring
+            // Profile Avatar with Neon Glow Ring (Dark: Cyan, Lite: Blue)
             val photoUrl = userProfile?.photoUrl.orEmpty()
             val isCustomPhoto = photoUrl.startsWith("file:") ||
                     photoUrl.startsWith("content:") ||
@@ -280,10 +281,10 @@ fun TimeBasedGreetingHeader(
                     .clip(CircleShape)
                     .border(
                         width = 1.5.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        color = if (isDark) Color(0xFF00E5FF).copy(alpha = 0.7f) else Color(0xFF38BDF8),
                         shape = CircleShape
                     )
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(if (isDark) Color(0xFF0F1E40) else Color(0xFFDBEAFE))
                     .bounceClick { onOpenSettings() }
                     .testTag("profile_avatar_button"),
                 contentAlignment = Alignment.Center
@@ -302,69 +303,42 @@ fun TimeBasedGreetingHeader(
                     Text(
                         text = initialLetter,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF),
                         fontSize = 18.sp
                     )
                 }
             }
 
             Column {
-                // Greeting and Sun/Moon indicator
+                // Greeting with Person icon
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Matching Sun / Moon Animated Icon with smooth crossfade
-                    AnimatedContent(
-                        targetState = phase,
-                        transitionSpec = {
-                            (fadeIn(animationSpec = tween(400, easing = LinearOutSlowInEasing)) +
-                                    scaleIn(initialScale = 0.82f, animationSpec = tween(400))) togetherWith
-                                    (fadeOut(animationSpec = tween(350, easing = FastOutLinearInEasing)) +
-                                            scaleOut(targetScale = 1.08f, animationSpec = tween(350)))
-                        },
-                        label = "greetingIconCrossfade"
-                    ) { targetPhase ->
-                        val iconColor = if (isDark) targetPhase.darkIconColor else targetPhase.lightIconColor
-
-                        Icon(
-                            imageVector = targetPhase.icon,
-                            contentDescription = targetPhase.phaseName,
-                            tint = iconColor,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .testTag("greeting_icon_${targetPhase.name.lowercase()}")
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(5.dp))
-
-                    // Smooth fade animated greeting text
-                    AnimatedContent(
-                        targetState = greetingText,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(450, easing = LinearOutSlowInEasing)) togetherWith
-                                    fadeOut(animationSpec = tween(450, easing = FastOutLinearInEasing))
-                        },
-                        label = "greetingTextFade"
-                    ) { text ->
-                        Text(
-                            text = "$text, $userName",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            maxLines = 1,
-                            modifier = Modifier.testTag("greeting_text")
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "$greetingText, $userName",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        ),
+                        color = if (isDark) Color.White else Color(0xFF080F20),
+                        maxLines = 1,
+                        modifier = Modifier.testTag("greeting_text")
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
                     text = "My Wallet",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF00F0FF)
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF)
                     ),
                     modifier = Modifier.testTag("app_subtitle")
                 )
@@ -374,50 +348,49 @@ fun TimeBasedGreetingHeader(
         // Right side: Notification Icon and Settings Icon
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Notification icon button with neon glass style and unread badge dot
+            // Notification icon button with unread badge dot
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(Color(0x2600F0FF))
-                    .border(1.dp, Color(0x4000F0FF), CircleShape)
+                    .background(if (isDark) Color(0xFF0C1A38) else Color(0xFFDBEAFE))
+                    .border(1.dp, if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE), CircleShape)
                     .bounceClick(scaleDown = 0.9f) { onOpenNotifications() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Notifications",
-                    tint = Color(0xFF00F0FF),
+                    tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF),
                     modifier = Modifier.size(20.dp)
                 )
-                if (unreadNotificationsCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(9.dp)
-                            .align(Alignment.TopEnd)
-                            .padding(top = 2.dp, end = 2.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFEF4444))
-                    )
-                }
+                // Red badge dot at top-right
+                Box(
+                    modifier = Modifier
+                        .size(9.dp)
+                        .align(Alignment.TopEnd)
+                        .padding(top = 3.dp, end = 3.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFEF4444))
+                )
             }
 
-            // Settings icon button with neon glass style
+            // Settings icon button
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(Color(0x2600F0FF))
-                    .border(1.dp, Color(0x4000F0FF), CircleShape)
+                    .background(if (isDark) Color(0xFF0C1A38) else Color(0xFFDBEAFE))
+                    .border(1.dp, if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE), CircleShape)
                     .bounceClick(scaleDown = 0.9f) { onOpenSettings() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Settings",
-                    tint = Color(0xFF00F0FF),
+                    tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF),
                     modifier = Modifier.size(20.dp)
                 )
             }

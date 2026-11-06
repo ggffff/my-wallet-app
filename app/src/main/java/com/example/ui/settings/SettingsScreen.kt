@@ -36,11 +36,15 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.EventRepeat
+import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Public
+import com.example.ui.dialogs.CountryLanguageDialog
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Shield
@@ -107,7 +111,9 @@ fun SettingsScreen(
     onSaveProfile: (String, String) -> Unit,
     onSignOut: () -> Unit,
     onOpenGoals: () -> Unit = {},
-    onOpenBills: () -> Unit = {}
+    onOpenBills: () -> Unit = {},
+    onOpenDebts: () -> Unit = {},
+    onOpenHabits: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -120,6 +126,8 @@ fun SettingsScreen(
     var selectedAvatar by remember(userProfile) {
         mutableStateOf(userProfile?.photoUrl?.ifBlank { "avatar_1" } ?: "avatar_1")
     }
+
+    var showCountryDialog by remember { mutableStateOf(false) }
 
     // Universal Android Photo Picker & Gallery/Files Picker for Phone Uploads
     val saveImageFromUri: (Uri) -> Unit = { uri ->
@@ -544,7 +552,7 @@ fun SettingsScreen(
                                     color = PureWhite
                                 )
                                 Text(
-                                    text = "Easy on eyes • Modern slate background",
+                                    text = "Deep Navy (#080F20) • Blue gradient cards",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF94A3B8)
                                 )
@@ -570,7 +578,7 @@ fun SettingsScreen(
                     }
                 }
 
-                // Light Mode Option Card
+                // Lite Mode Option Card
                 val isLightSelected = !currentDarkTheme
                 Box(
                     modifier = Modifier
@@ -606,7 +614,7 @@ fun SettingsScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.LightMode,
-                                    contentDescription = "Light Mode",
+                                    contentDescription = "Lite Mode",
                                     tint = Color(0xFFD97706),
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -614,12 +622,12 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
                                 Text(
-                                    text = "Light Mode (লাইট মোড)",
+                                    text = "Lite Mode (লাইট মোড)",
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     color = Color(0xFF0F172A)
                                 )
                                 Text(
-                                    text = "Clean slate • Soft on eyes, zero glare",
+                                    text = "Soft White (#F4F7FF) • Pure white & soft blue cards",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF475569)
                                 )
@@ -663,56 +671,74 @@ fun SettingsScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Language Toggle (English / Bangla)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                // Language & Country Selector
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(activeTheme.primaryColor.copy(alpha = if (activeTheme.isDark) 0.12f else 0.08f))
+                        .border(
+                            1.dp,
+                            activeTheme.primaryColor.copy(alpha = 0.25f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { showCountryDialog = true }
+                        .padding(14.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = currentLanguage.flagEmoji,
+                                fontSize = 28.sp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = currentLanguage.countryName,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (activeTheme.isDark) PureWhite else Color(0xFF080F20)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "(${currentLanguage.label})",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = activeTheme.primaryColor
+                                    )
+                                }
+                                Text(
+                                    text = "${appString(StringKeys.LANGUAGE)} • ${currentLanguage.currencyCode} (${currentLanguage.currencySymbol})",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = if (activeTheme.isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                                )
+                            }
+                        }
+
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
-                                .background(activeTheme.secondaryColor.copy(alpha = 0.15f), CircleShape),
-                            contentAlignment = Alignment.Center
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(activeTheme.primaryColor)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = null,
-                                tint = activeTheme.secondaryColor,
-                                modifier = Modifier.size(22.dp)
+                            Text(
+                                text = "Change >",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = appString(StringKeys.LANGUAGE),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "English / বাংলা",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(
-                            selected = currentLanguage == AppLanguage.ENGLISH,
-                            onClick = { onToggleLanguage(AppLanguage.ENGLISH) },
-                            label = { Text("EN") }
-                        )
-                        FilterChip(
-                            selected = currentLanguage == AppLanguage.BANGLA,
-                            onClick = { onToggleLanguage(AppLanguage.BANGLA) },
-                            label = { Text("বাংলা") }
-                        )
                     }
                 }
 
-                // Currency Display
+                // Currency Display (Synced with selected country)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -723,22 +749,22 @@ fun SettingsScreen(
                             .background(IncomeGreen.copy(alpha = 0.15f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MonetizationOn,
-                            contentDescription = null,
-                            tint = IncomeGreen,
-                            modifier = Modifier.size(22.dp)
+                        Text(
+                            text = currentLanguage.currencySymbol,
+                            fontWeight = FontWeight.Bold,
+                            color = IncomeGreen,
+                            fontSize = 18.sp
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = appString(StringKeys.CURRENCY_BDT),
+                            text = "${currentLanguage.currencyCode} (${currentLanguage.currencySymbol})",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Bangladeshi Taka (৳ BDT) default currency",
+                            text = "Currency for ${currentLanguage.countryName}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -823,6 +849,62 @@ fun SettingsScreen(
                     }
                     Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
+
+                // Debts (দেনা-পাওনা) shortcut
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onOpenDebts() }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(IncomeGreen.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Handshake, contentDescription = null, tint = IncomeGreen, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(appString(StringKeys.DEBTS), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                            Text(appString(StringKeys.DEBTS_SUBTITLE), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                }
+
+                // Habits & Routines shortcut
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onOpenHabits() }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color(0xFF0070F3).copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.EventRepeat, contentDescription = null, tint = Color(0xFF0070F3), modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(appString(StringKeys.HABITS), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                            Text(appString(StringKeys.HABITS_SUBTITLE), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                }
             }
         }
 
@@ -865,6 +947,17 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (showCountryDialog) {
+        CountryLanguageDialog(
+            currentLanguage = currentLanguage,
+            onDismiss = { showCountryDialog = false },
+            onSelectLanguage = { newLang ->
+                onToggleLanguage(newLang)
+                showCountryDialog = false
+            }
+        )
     }
 }
 

@@ -67,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -81,7 +82,9 @@ import androidx.credentials.CredentialManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.Account
 import com.example.data.model.Bill
+import com.example.data.model.Debt
 import com.example.data.model.Goal
+import com.example.data.model.HabitRoutine
 import com.example.data.model.Transaction
 import com.example.data.model.TransactionType
 import com.example.data.model.UserProfile
@@ -90,11 +93,13 @@ import com.example.ui.accounts.AccountsScreen
 import com.example.ui.auth.AuthScreen
 import com.example.ui.bills.BillsScreen
 import com.example.ui.chat.ChatBotScreen
+import com.example.ui.debts.DebtsScreen
 import com.example.ui.dialogs.AddAccountDialog
 import com.example.ui.dialogs.AddBillDialog
 import com.example.ui.dialogs.AddGoalDialog
 import com.example.ui.dialogs.AddTransactionDialog
 import com.example.ui.goals.GoalsScreen
+import com.example.ui.habits.HabitsScreen
 import com.example.ui.home.HomeScreen
 import com.example.ui.motion.bounceClick
 import com.example.ui.motion.neonGlow
@@ -129,6 +134,8 @@ enum class Screen {
     TRANSACTIONS,
     GOALS,
     BILLS,
+    DEBTS,
+    HABITS,
     CHATBOT
 }
 
@@ -166,7 +173,8 @@ class MainActivity : ComponentActivity() {
             val savedThemeId = remember { prefs.getString("selected_theme", AppTheme.CYBER_NEON.id) ?: AppTheme.CYBER_NEON.id }
             var currentTheme by remember { mutableStateOf(AppTheme.fromId(savedThemeId)) }
             var isDarkTheme by remember { mutableStateOf(currentTheme.isDark) }
-            var appLanguage by remember { mutableStateOf(AppLanguage.ENGLISH) }
+            val savedLangCode = remember { prefs.getString("selected_language", AppLanguage.BANGLADESH.code) ?: AppLanguage.BANGLADESH.code }
+            var appLanguage by remember { mutableStateOf(AppLanguage.fromCode(savedLangCode)) }
 
             var isGuestMode by remember { mutableStateOf(prefs.getBoolean("guest_mode_enabled", false)) }
 
@@ -242,7 +250,10 @@ class MainActivity : ComponentActivity() {
                                     isDarkTheme = theme.isDark
                                     prefs.edit().putString("selected_theme", theme.id).apply()
                                 },
-                                onToggleLanguage = { appLanguage = it },
+                                onToggleLanguage = { newLang ->
+                                    appLanguage = newLang
+                                    prefs.edit().putString("selected_language", newLang.code).apply()
+                                },
                                 onSignOut = {
                                     signOut(this@MainActivity) {
                                         isGuestMode = false
@@ -281,6 +292,8 @@ fun MainWalletApp(
     val transactions by remember(repository) { repository.observeTransactions() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val goals by remember(repository) { repository.observeGoals() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val bills by remember(repository) { repository.observeBills() }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val debts by remember(repository) { repository.observeDebts() }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val habits by remember(repository) { repository.observeHabits() }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     val prefs = remember { context.getSharedPreferences("wallet_prefs", Context.MODE_PRIVATE) }
 
@@ -335,6 +348,8 @@ fun MainWalletApp(
     val isSubScreen = currentScreen == Screen.TRANSACTIONS ||
             currentScreen == Screen.GOALS ||
             currentScreen == Screen.BILLS ||
+            currentScreen == Screen.DEBTS ||
+            currentScreen == Screen.HABITS ||
             currentScreen == Screen.CHATBOT
 
     Scaffold(
@@ -345,14 +360,16 @@ fun MainWalletApp(
                     title = {
                         Text(
                             text = when (currentScreen) {
-                                Screen.HOME -> "My Wallet"
-                                Screen.ACCOUNTS -> "Accounts"
-                                Screen.REPORTS -> "Reports & Analytics"
-                                Screen.SETTINGS -> "Settings & Profile"
-                                Screen.TRANSACTIONS -> "Statements"
-                                Screen.GOALS -> "Saving Goals"
-                                Screen.BILLS -> "Bills & Dues"
-                                Screen.CHATBOT -> "AI Financial Advisor"
+                                Screen.HOME -> appString(StringKeys.APP_NAME)
+                                Screen.ACCOUNTS -> appString(StringKeys.ACCOUNTS)
+                                Screen.REPORTS -> appString(StringKeys.REPORTS)
+                                Screen.SETTINGS -> appString(StringKeys.SETTINGS)
+                                Screen.TRANSACTIONS -> appString(StringKeys.STATEMENTS)
+                                Screen.GOALS -> appString(StringKeys.GOALS)
+                                Screen.BILLS -> appString(StringKeys.BILLS)
+                                Screen.DEBTS -> appString(StringKeys.DEBTS)
+                                Screen.HABITS -> appString(StringKeys.HABITS)
+                                Screen.CHATBOT -> appString(StringKeys.CHATBOT)
                             },
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
@@ -390,7 +407,7 @@ fun MainWalletApp(
                 // 4 Core Tabs with modern Pill Capsule Indicator design:
                 // Home, Accounts, Reports, Settings
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = if (isDarkTheme) Color(0xFF080F20) else Color(0xFFF4F7FF),
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.testTag("bottom_navigation_bar")
                 ) {
@@ -399,7 +416,7 @@ fun MainWalletApp(
                         selected = currentScreen == Screen.HOME,
                         onClick = { currentScreen = Screen.HOME },
                         icon = Icons.Default.AccountBalanceWallet,
-                        label = "Home",
+                        label = appString(StringKeys.HOME),
                         glowColor = MaterialTheme.colorScheme.primary
                     )
 
@@ -408,7 +425,7 @@ fun MainWalletApp(
                         selected = currentScreen == Screen.ACCOUNTS,
                         onClick = { currentScreen = Screen.ACCOUNTS },
                         icon = Icons.Default.CreditCard,
-                        label = "Accounts",
+                        label = appString(StringKeys.ACCOUNTS),
                         glowColor = MaterialTheme.colorScheme.primary
                     )
 
@@ -417,7 +434,7 @@ fun MainWalletApp(
                         selected = currentScreen == Screen.REPORTS,
                         onClick = { currentScreen = Screen.REPORTS },
                         icon = Icons.Default.BarChart,
-                        label = "Reports",
+                        label = appString(StringKeys.REPORTS),
                         glowColor = MaterialTheme.colorScheme.primary
                     )
 
@@ -426,7 +443,7 @@ fun MainWalletApp(
                         selected = currentScreen == Screen.SETTINGS,
                         onClick = { currentScreen = Screen.SETTINGS },
                         icon = Icons.Default.Settings,
-                        label = "Settings",
+                        label = appString(StringKeys.SETTINGS),
                         glowColor = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -456,6 +473,8 @@ fun MainWalletApp(
                         accounts = accounts,
                         transactions = transactions,
                         bills = bills,
+                        debts = debts,
+                        habits = habits,
                         onAddAccountClicked = { showAddAccountDialog = true },
                         onUpdateAccount = { updated ->
                             coroutineScope.launch {
@@ -486,8 +505,11 @@ fun MainWalletApp(
                         onViewAllStatementsClicked = { currentScreen = Screen.TRANSACTIONS },
                         onViewBillsClicked = { currentScreen = Screen.BILLS },
                         onViewGoalsClicked = { currentScreen = Screen.GOALS },
+                        onViewDebtsClicked = { currentScreen = Screen.DEBTS },
+                        onViewHabitsClicked = { currentScreen = Screen.HABITS },
                         onOpenAiAdvisor = { currentScreen = Screen.CHATBOT },
-                        onOpenSettings = { currentScreen = Screen.SETTINGS }
+                        onOpenSettings = { currentScreen = Screen.SETTINGS },
+                        onToggleLanguage = onToggleLanguage
                     )
                     Screen.ACCOUNTS -> AccountsScreen(
                         accounts = accounts,
@@ -543,7 +565,9 @@ fun MainWalletApp(
                         },
                         onSignOut = onSignOut,
                         onOpenGoals = { currentScreen = Screen.GOALS },
-                        onOpenBills = { currentScreen = Screen.BILLS }
+                        onOpenBills = { currentScreen = Screen.BILLS },
+                        onOpenDebts = { currentScreen = Screen.DEBTS },
+                        onOpenHabits = { currentScreen = Screen.HABITS }
                     )
                     Screen.TRANSACTIONS -> StatementsScreen(
                         transactions = transactions,
@@ -594,6 +618,74 @@ fun MainWalletApp(
                             coroutineScope.launch {
                                 repository.deleteBill(bill.id)
                                 snackbarHostState.showSnackbar("Bill removed")
+                            }
+                        }
+                    )
+                    Screen.DEBTS -> DebtsScreen(
+                        debts = debts,
+                        accounts = accounts,
+                        onAddDebt = { newDebt, accId ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.addDebt(newDebt, accId)
+                                    snackbarHostState.showSnackbar("হিসাব সফলভাবে সংরক্ষিত হয়েছে")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                                }
+                            }
+                        },
+                        onRecordRepayment = { debt, repayAmt, accId ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.recordDebtRepayment(debt, repayAmt, accId)
+                                    snackbarHostState.showSnackbar("পরিশোধ রেকর্ড সফল হয়েছে")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                                }
+                            }
+                        },
+                        onDeleteDebt = { debt ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.deleteDebt(debt.id)
+                                    snackbarHostState.showSnackbar("হিসাব মুছে ফেলা হয়েছে")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                                }
+                            }
+                        }
+                    )
+                    Screen.HABITS -> HabitsScreen(
+                        habits = habits,
+                        accounts = accounts,
+                        onAddHabit = { newHabit ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.addHabit(newHabit)
+                                    snackbarHostState.showSnackbar("নতুন রুটিন সংরক্ষিত হয়েছে")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                                }
+                            }
+                        },
+                        onMarkCompleted = { habit, compDate, costAccId ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.markHabitCompleted(habit, compDate, costAccId)
+                                    snackbarHostState.showSnackbar("রুটিন সম্পন্ন হয়েছে এবং পরবর্তী তারিখ সেট করা হয়েছে!")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                                }
+                            }
+                        },
+                        onDeleteHabit = { habit ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.deleteHabit(habit.id)
+                                    snackbarHostState.showSnackbar("রুটিন মুছে ফেলা হয়েছে")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                                }
                             }
                         }
                     )
@@ -685,8 +777,12 @@ private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
     glowColor: Color
 ) {
     val isDark = LocalAppTheme.current.isDark
-    val activePillColor = if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color(0xFFDBEAFE)
-    val activeIconTint = if (isDark) Color(0xFF60A5FA) else Color(0xFF1D4ED8)
+    val activePillBg = if (isDark) {
+        Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0070F3), Color(0xFF0284C7)))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xFFDBEAFE), Color(0xFFE0F2FE)))
+    }
+    val activeIconTint = if (isDark) Color.White else Color(0xFF0066FF)
     val inactiveTint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
 
     NavigationBarItem(
@@ -698,8 +794,9 @@ private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .width(64.dp)
-                        .height(32.dp)
-                        .background(activePillColor, shape = RoundedCornerShape(16.dp))
+                        .height(34.dp)
+                        .shadow(if (isDark) 4.dp else 1.dp, RoundedCornerShape(17.dp), spotColor = if (isDark) Color(0xFF0070F3) else Color.Transparent)
+                        .background(activePillBg, shape = RoundedCornerShape(17.dp))
                 ) {
                     Icon(
                         imageVector = icon,
@@ -713,7 +810,7 @@ private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .width(64.dp)
-                        .height(32.dp)
+                        .height(34.dp)
                 ) {
                     Icon(
                         imageVector = icon,
@@ -729,7 +826,7 @@ private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) (if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F172A)) else inactiveTint,
+                color = if (selected) (if (isDark) Color.White else Color(0xFF080F20)) else inactiveTint,
                 maxLines = 2,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 lineHeight = 13.sp

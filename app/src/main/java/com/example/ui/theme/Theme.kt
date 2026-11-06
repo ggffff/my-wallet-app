@@ -33,13 +33,13 @@ enum class AppTheme(
 ) {
     CYBER_NEON(
         id = "cyber_neon",
-        displayName = "Modern Dark",
-        subtitle = "Clean Slate • Royal Blue Accents",
+        displayName = "Dark Mode",
+        subtitle = "Deep Navy (#080F20) • Blue Gradient Cards",
         isDark = true,
-        primaryColor = Color(0xFF3B82F6),
-        secondaryColor = Color(0xFF38BDF8),
-        glowColor = Color(0xFF60A5FA),
-        previewBg = Color(0xFF0B1120)
+        primaryColor = Color(0xFF38BDF8),
+        secondaryColor = Color(0xFF0070F3),
+        glowColor = Color(0xFF38BDF8),
+        previewBg = Color(0xFF080F20)
     ),
     MIDNIGHT_EMERALD(
         id = "midnight_emerald",
@@ -73,13 +73,13 @@ enum class AppTheme(
     ),
     FROSTED_PEARL(
         id = "frosted_pearl",
-        displayName = "Clean Light",
-        subtitle = "Soft Slate • Royal Blue & Crisp White",
+        displayName = "Lite Mode",
+        subtitle = "Soft White (#F4F7FF) • Pure White & Soft Blue Cards",
         isDark = false,
-        primaryColor = PearlPrimary,
-        secondaryColor = PearlSecondary,
-        glowColor = PearlGlow,
-        previewBg = PearlBackground
+        primaryColor = Color(0xFF0066FF),
+        secondaryColor = Color(0xFF0284C7),
+        glowColor = Color(0x330066FF),
+        previewBg = Color(0xFFF4F7FF)
     );
 
     fun toColorScheme(): ColorScheme {
@@ -102,27 +102,28 @@ enum class AppTheme(
 
 val LocalAppTheme = compositionLocalOf { AppTheme.CYBER_NEON }
 
-// 1. Clean Modern Dark Color Scheme (Formerly Cyber Neon)
+// 1. Dark Mode Color Scheme (Deep Navy #080F20, Blue Gradient Cards, White Text)
 val CyberNeonColorScheme = darkColorScheme(
-    primary = Color(0xFF3B82F6),
+    primary = Color(0xFF38BDF8),
     onPrimary = PureWhite,
-    primaryContainer = Color(0xFF1E293B),
-    onPrimaryContainer = Color(0xFFDBEAFE),
-    secondary = Color(0xFF38BDF8),
+    primaryContainer = Color(0xFF0F1E40),
+    onPrimaryContainer = Color(0xFFBAE6FD),
+    secondary = Color(0xFF0070F3),
     onSecondary = PureWhite,
-    secondaryContainer = Color(0xFF0F172A),
-    onSecondaryContainer = Color(0xFFBAE6FD),
+    secondaryContainer = Color(0xFF0B1733),
+    onSecondaryContainer = Color(0xFF38BDF8),
     tertiary = IncomeGreen,
     onTertiary = PureWhite,
     error = ExpenseRed,
     onError = PureWhite,
-    background = Color(0xFF0B1120),
+    background = Color(0xFF080F20), // Deep Navy #080F20 as per specification
     onBackground = PureWhite,
-    surface = Color(0xFF131D31),
+    surface = Color(0xFF0B1733), // Dark Navy Card #0B1733
     onSurface = PureWhite,
-    surfaceVariant = Color(0xFF1E293B),
-    onSurfaceVariant = Color(0xFF94A3B8),
-    outline = Color(0xFF334155)
+    surfaceVariant = Color(0xFF102244),
+    onSurfaceVariant = Color(0xFF94A3B8), // Soft Grey
+    outline = Color(0xFF1E3A8A), // Subtle Blue Border
+    outlineVariant = Color(0xFF152A55)
 )
 
 // Backwards compatibility alias
@@ -197,28 +198,28 @@ val SunsetBlazeColorScheme = darkColorScheme(
     outline = SunsetBorder
 )
 
-// 5. Clean Light Color Scheme (Balanced Slate & Royal Blue, No Eye Strain)
+// 5. Lite Mode Color Scheme (Soft White #F4F7FF, Pure White / Soft Blue Cards, Deep Navy Text)
 val FrostedPearlColorScheme = lightColorScheme(
-    primary = PearlPrimary,
+    primary = Color(0xFF0066FF),
     onPrimary = PureWhite,
     primaryContainer = Color(0xFFDBEAFE),
     onPrimaryContainer = Color(0xFF1E40AF),
-    secondary = PearlSecondary,
+    secondary = Color(0xFF0284C7),
     onSecondary = PureWhite,
-    secondaryContainer = Color(0xFFE0F2FE),
+    secondaryContainer = Color(0xFFF0F6FF),
     onSecondaryContainer = Color(0xFF0369A1),
     tertiary = IncomeGreen,
     onTertiary = PureWhite,
     error = ExpenseRed,
     onError = PureWhite,
-    background = PearlBackground,
-    onBackground = Color(0xFF0F172A),
-    surface = PearlSurface,
-    onSurface = Color(0xFF0F172A),
-    surfaceVariant = PearlSurfaceElevated,
-    onSurfaceVariant = Color(0xFF475569),
-    outline = PearlBorder,
-    outlineVariant = Color(0xFFE2E8F0)
+    background = Color(0xFFF4F7FF), // Soft White #F4F7FF as per specification
+    onBackground = Color(0xFF080F20), // Deep Navy Text
+    surface = Color(0xFFFFFFFF), // Pure White Cards
+    onSurface = Color(0xFF080F20), // Deep Navy Text
+    surfaceVariant = Color(0xFFF0F6FF), // Soft Blue
+    onSurfaceVariant = Color(0xFF64748B), // Slate Grey Secondary Text
+    outline = Color(0xFFCBD5E1), // Soft Blue Grey Border
+    outlineVariant = Color(0xFFBFDBFE)
 )
 
 // Backwards compatibility alias

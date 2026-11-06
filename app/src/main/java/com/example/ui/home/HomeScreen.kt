@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -69,9 +70,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import androidx.compose.material.icons.filled.EventRepeat
+import androidx.compose.material.icons.filled.Handshake
 import com.example.data.model.Account
 import com.example.data.model.AccountType
 import com.example.data.model.Bill
+import com.example.data.model.Debt
+import com.example.data.model.HabitRoutine
 import com.example.data.model.Transaction
 import com.example.data.model.TransactionType
 import com.example.data.model.UserProfile
@@ -82,11 +87,13 @@ import com.example.ui.motion.staggeredEntrance
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
 import com.example.ui.theme.PureWhite
+import com.example.ui.dialogs.CountryLanguageDialog
 import com.example.util.AppLanguage
 import com.example.util.LocalAppLanguage
 import com.example.util.StringKeys
 import com.example.util.appString
 import com.example.util.formatBdt
+import com.example.util.formatCurrency
 
 @Composable
 fun HomeScreen(
@@ -94,6 +101,8 @@ fun HomeScreen(
     accounts: List<Account>,
     transactions: List<Transaction>,
     bills: List<Bill>,
+    debts: List<Debt> = emptyList(),
+    habits: List<HabitRoutine> = emptyList(),
     onAddAccountClicked: () -> Unit,
     onUpdateAccount: (Account) -> Unit = {},
     onDeleteAccount: (Account) -> Unit = {},
@@ -101,12 +110,16 @@ fun HomeScreen(
     onViewAllStatementsClicked: () -> Unit,
     onViewBillsClicked: () -> Unit,
     onViewGoalsClicked: () -> Unit,
+    onViewDebtsClicked: () -> Unit = {},
+    onViewHabitsClicked: () -> Unit = {},
     onOpenAiAdvisor: () -> Unit = {},
-    onOpenSettings: () -> Unit = {}
+    onOpenSettings: () -> Unit = {},
+    onToggleLanguage: (AppLanguage) -> Unit = {}
 ) {
     val language = LocalAppLanguage.current
     var isBalanceHidden by remember { mutableStateOf(false) }
     var accountToUpdate by remember { mutableStateOf<Account?>(null) }
+    var showCountryDialog by remember { mutableStateOf(false) }
 
     val netBalance = remember(accounts) {
         accounts.sumOf { it.balance }
@@ -147,95 +160,179 @@ fun HomeScreen(
             )
         }
 
-        // 2. Large Net Balance Hero Card (Clean Modern Card - No harsh neon)
+        // 2. Large Net Balance Hero Card (Clean Modern Card strictly matching reference design)
         item {
+            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp)
-                    .shadow(4.dp, RoundedCornerShape(24.dp)),
-                shape = RoundedCornerShape(24.dp),
+                    .shadow(
+                        elevation = if (isDark) 8.dp else 4.dp,
+                        shape = RoundedCornerShape(26.dp),
+                        spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.08f)
+                    ),
+                shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF1E3A8A),
-                                    Color(0xFF2563EB),
-                                    Color(0xFF1D4ED8)
+                            brush = if (isDark) {
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF0052FE),
+                                        Color(0xFF0284C7),
+                                        Color(0xFF0A2268)
+                                    )
+                                )
+                            } else {
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFFFFFFF),
+                                        Color(0xFFF0F9FF),
+                                        Color(0xFFE0F2FE)
+                                    )
+                                )
+                            }
+                        )
+                        .border(
+                            width = 1.5.dp,
+                            color = if (isDark) Color(0xFF00D2FF).copy(alpha = 0.55f) else Color(0xFFBFDBFE),
+                            shape = RoundedCornerShape(26.dp)
+                        )
+                ) {
+                    // Flowing Background Wave Curve
+                    androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
+                        val w = size.width
+                        val h = size.height
+                        val wavePath = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(0f, h * 0.70f)
+                            cubicTo(w * 0.35f, h * 0.54f, w * 0.65f, h * 0.88f, w, h * 0.64f)
+                            lineTo(w, h)
+                            lineTo(0f, h)
+                            close()
+                        }
+                        drawPath(
+                            path = wavePath,
+                            brush = Brush.linearGradient(
+                                colors = if (isDark) listOf(
+                                    Color(0xFF0070F3).copy(alpha = 0.30f),
+                                    Color(0xFF00E5FF).copy(alpha = 0.15f),
+                                    Color.Transparent
+                                ) else listOf(
+                                    Color(0xFFBAE6FD).copy(alpha = 0.65f),
+                                    Color(0xFF7DD3FC).copy(alpha = 0.30f),
+                                    Color.Transparent
                                 )
                             )
                         )
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
-                        .padding(22.dp)
-                ) {
-                    Column {
+                    }
+
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        // Top Row: Net Balance Title | Eye Toggle ... BDT (৳) ▾ Pill
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                // 3D Blue Wallet Icon Badge
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isDark) Color(0xFF0284C7) else Color(0xFF0066FF)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountBalance,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Net Balance",
+                                    text = appString(StringKeys.NET_BALANCE),
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
+                                        fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp
                                     ),
-                                    color = Color(0xFFDCEBFE)
+                                    color = if (isDark) Color.White else Color(0xFF080F20)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .height(14.dp)
+                                        .background(if (isDark) Color(0xFF94A3B8).copy(alpha = 0.4f) else Color(0xFFCBD5E1))
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 IconButton(
                                     onClick = { isBalanceHidden = !isBalanceHidden },
                                     modifier = Modifier
-                                        .size(30.dp)
+                                        .size(28.dp)
                                         .rotate(eyeRotation)
                                 ) {
                                     Icon(
                                         imageVector = if (isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                         contentDescription = "Toggle Balance",
-                                        tint = PureWhite,
+                                        tint = if (isDark) Color.White else Color(0xFF080F20),
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
 
-                            // Clean currency pill
+                            // Dynamic Country & Currency pill dropdown: e.g. 🇧🇩 BDT (৳) ▾
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White.copy(alpha = 0.15f))
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(if (isDark) Color.White.copy(alpha = 0.16f) else Color(0xFFE0F2FE))
+                                    .border(1.dp, if (isDark) Color.White.copy(alpha = 0.25f) else Color(0xFFBFDBFE), RoundedCornerShape(14.dp))
+                                    .clickable { showCountryDialog = true }
                                     .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 Text(
-                                    text = "BDT (৳)",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = PureWhite
+                                    text = "${language.flagEmoji} ${language.currencyCode} (${language.currencySymbol}) ▾",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = if (isDark) Color.White else Color(0xFF080F20)
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Large Net Balance Counter
-                        AnimatedBdtCounter(
-                            targetAmount = netBalance,
-                            language = language,
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 35.sp,
-                                letterSpacing = 0.5.sp
-                            ),
-                            color = PureWhite,
-                            isMasked = isBalanceHidden
-                        )
+                        // Middle Row: Large Amount + Visa Card & Gold Coins Illustration
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            AnimatedBdtCounter(
+                                targetAmount = netBalance,
+                                language = language,
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 36.sp,
+                                    letterSpacing = 0.5.sp
+                                ),
+                                color = if (isDark) Color.White else Color(0xFF080F20),
+                                isMasked = isBalanceHidden
+                            )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                            // Contactless Card + Stack of Gold Coins
+                            VisaCardCoinsIllustration()
+                        }
 
-                        // Total Income and Total Spent Clean Capsules
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Bottom Row: Total Income and Total Spent Summary Capsules
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -244,9 +341,9 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color.Black.copy(alpha = 0.20f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(if (isDark) Color(0x33003B15) else Color(0xFFDCFCE7))
+                                    .border(1.dp, if (isDark) Color(0x3310B981) else Color(0xFF86EFAC), RoundedCornerShape(18.dp))
                                     .bounceClick(scaleDown = 0.96f) {
                                         onAddTransactionClicked(TransactionType.INCOME)
                                     }
@@ -255,27 +352,27 @@ fun HomeScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(34.dp)
                                             .clip(CircleShape)
-                                            .background(IncomeGreen.copy(alpha = 0.25f)),
+                                            .background(Color(0xFF10B981)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.ArrowDownward,
                                             contentDescription = "Income",
-                                            tint = IncomeGreen,
+                                            tint = Color.White,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column {
                                         Text(
-                                            text = "Total Income",
+                                            text = appString(StringKeys.TOTAL_INCOME),
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Medium
                                             ),
-                                            color = PureWhite.copy(alpha = 0.85f)
+                                            color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF64748B)
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         AnimatedBdtCounter(
@@ -285,7 +382,7 @@ fun HomeScreen(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 15.sp
                                             ),
-                                            color = PureWhite,
+                                            color = if (isDark) Color.White else Color(0xFF080F20),
                                             isMasked = isBalanceHidden
                                         )
                                     }
@@ -296,9 +393,9 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color.Black.copy(alpha = 0.20f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(if (isDark) Color(0x33450505) else Color(0xFFFEE2E2))
+                                    .border(1.dp, if (isDark) Color(0x33EF4444) else Color(0xFFFCA5A5), RoundedCornerShape(18.dp))
                                     .bounceClick(scaleDown = 0.96f) {
                                         onAddTransactionClicked(TransactionType.SPENT)
                                     }
@@ -307,27 +404,27 @@ fun HomeScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(34.dp)
                                             .clip(CircleShape)
-                                            .background(ExpenseRed.copy(alpha = 0.25f)),
+                                            .background(Color(0xFFEF4444)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.ArrowUpward,
                                             contentDescription = "Spent",
-                                            tint = ExpenseRed,
+                                            tint = Color.White,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column {
                                         Text(
-                                            text = "Total Spent",
+                                            text = appString(StringKeys.TOTAL_EXPENSE),
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Medium
                                             ),
-                                            color = PureWhite.copy(alpha = 0.85f)
+                                            color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF64748B)
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         AnimatedBdtCounter(
@@ -337,7 +434,7 @@ fun HomeScreen(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 15.sp
                                             ),
-                                            color = PureWhite,
+                                            color = if (isDark) Color.White else Color(0xFF080F20),
                                             isMasked = isBalanceHidden
                                         )
                                     }
@@ -350,23 +447,23 @@ fun HomeScreen(
         }
 
         // 3. Five 3D Quick Action Picture Items
-        // User requested: "Apps Theme And Visual Effects Remove koro, Suggest Pic Gulo Animated dew 2/3ta"
-        // 3 Animated Suggested Pictures:
-        // 1. Saving Goals: Target Breathing Pulse & Micro-aim rotation
-        // 2. AI Tips: Magical Sparkle rotation & shimmer scale
-        // 3. Add Income / Add Spent: Floating bounce vertical bobbing motion
+        // 1. Add Income (Green Wallet)
+        // 2. Add Spent (Red Wallet)
+        // 3. Saving Goals (Target with Coins - NO PIGGY BANK)
+        // 4. Bills & Dues (Calendar and Clock)
+        // 5. AI Tips (AI Lightbulb)
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 16.dp),
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Picture 1: Add Income
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_add_income,
-                    label = if (language == AppLanguage.BANGLA) "আয় যোগ" else "Add Income",
+                    label = appString(StringKeys.ADD_INCOME),
                     glowColor = IncomeGreen,
                     testTag = "quick_action_add_income",
                     onClick = { onAddTransactionClicked(TransactionType.INCOME) }
@@ -375,138 +472,365 @@ fun HomeScreen(
                 // Picture 2: Add Spent
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_add_spent,
-                    label = if (language == AppLanguage.BANGLA) "ব্যয় যোগ" else "Add Spent",
+                    label = appString(StringKeys.ADD_EXPENSE),
                     glowColor = ExpenseRed,
                     testTag = "quick_action_add_spent",
                     onClick = { onAddTransactionClicked(TransactionType.SPENT) }
                 )
 
-                // Picture 3: Saving Goals
+                // Picture 3: Saving Goals (Target with coins - NO PIGGY BANK)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_savings_goal,
-                    label = if (language == AppLanguage.BANGLA) "সঞ্চয় লক্ষ্য" else "Saving Goals",
-                    glowColor = Color(0xFF2563EB),
+                    label = appString(StringKeys.SAVING_GOALS),
+                    glowColor = Color(0xFF9333EA),
                     testTag = "quick_action_saving_goals",
                     onClick = onViewGoalsClicked
                 )
 
-                // Picture 4: Bills & Dues
+                // Picture 4: Bills & Dues (Calendar and Clock)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_bills_dues,
-                    label = if (language == AppLanguage.BANGLA) "বিল ও বকেয়া" else "Bills & Dues",
+                    label = appString(StringKeys.BILLS_AND_DUES),
                     glowColor = Color(0xFF0284C7),
                     testTag = "quick_action_bills_dues",
                     onClick = onViewBillsClicked
                 )
 
-                // Picture 5: AI Tips
+                // Picture 5: AI Tips (AI Lightbulb)
                 QuickAction3DItem(
                     drawableRes = R.drawable.img_quick_ai_tips,
-                    label = if (language == AppLanguage.BANGLA) "এআই টিপস" else "AI Tips",
-                    glowColor = Color(0xFF9333EA),
+                    label = appString(StringKeys.AI_TIPS),
+                    glowColor = Color(0xFFF59E0B),
                     testTag = "quick_action_ai_tips",
                     onClick = onOpenAiAdvisor
                 )
             }
         }
 
-        // 4. Upcoming Bill Glassmorphism Card
+        // 4. Upcoming Bill Card (Exact reference design)
         item {
+            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             val nextBill = upcomingBills.firstOrNull() ?: bills.firstOrNull { !it.isPaid }
-            val billTitle = nextBill?.title ?: "WiFi bill"
+            val billTitle = nextBill?.title ?: "Wifi Bill"
             val billAmount = nextBill?.amount ?: 450.0
             val billDueDate = nextBill?.dueDate ?: "2026-11-25"
 
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
-                    .shadow(1.5.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.06f))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .shadow(
+                        elevation = if (isDark) 4.dp else 2.dp,
+                        shape = RoundedCornerShape(22.dp),
+                        spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
+                        shape = RoundedCornerShape(22.dp)
+                    )
                     .bounceClick { onViewBillsClicked() },
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = if (isDark) Color(0xFF0B1733) else Color(0xFFFFFFFF)
                 )
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(Color(0xFFF59E0B).copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsActive,
-                            contentDescription = "Bill Alert",
-                            tint = Color(0xFFF59E0B),
-                            modifier = Modifier.size(22.dp)
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Subtle background wave accent
+                    androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
+                        val w = size.width
+                        val h = size.height
+                        val wavePath = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(0f, h * 0.75f)
+                            cubicTo(w * 0.4f, h * 0.6f, w * 0.7f, h * 0.95f, w, h * 0.7f)
+                            lineTo(w, h)
+                            lineTo(0f, h)
+                            close()
+                        }
+                        drawPath(
+                            path = wavePath,
+                            color = if (isDark) Color(0xFF0070F3).copy(alpha = 0.12f) else Color(0xFFBAE6FD).copy(alpha = 0.35f)
                         )
                     }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Amber Circular Bell Badge
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            Color(0xFFFDE68A),
+                                            Color(0xFFF59E0B),
+                                            Color(0xFFD97706)
+                                        )
+                                    )
+                                )
+                                .border(1.dp, Color(0xFFFEF08A), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.NotificationsActive,
+                                contentDescription = "Bill Alert",
+                                tint = Color(0xFF78350F),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        // Vertical divider line
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(28.dp)
+                                .background(if (isDark) Color(0xFF1E3A8A) else Color(0xFFCBD5E1))
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${appString(StringKeys.UPCOMING_BILL)}: $billTitle",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = if (isDark) Color.White else Color(0xFF080F20)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${appString(StringKeys.AMOUNT)}: ${formatCurrency(billAmount, language)} • ${appString(StringKeys.DUE_DATE)}: $billDueDate",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                            )
+                        }
+
+                        // Action pill button: View >
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    if (isDark) {
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF0070F3), Color(0xFF0284C7))
+                                        )
+                                    } else {
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF0066FF), Color(0xFF0284C7))
+                                        )
+                                    }
+                                )
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = appString(StringKeys.VIEW),
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                ),
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4.5. Quick Utilities: Debts & Habits
+        item {
+            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+            val activeDebts = debts.filter { !it.isSettled }
+            val lentSum = activeDebts.filter { it.type == "LENT" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+            val borrowSum = activeDebts.filter { it.type == "BORROWED" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+
+            val nextHabit = habits.firstOrNull()
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Card 1: Debts
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .shadow(
+                            elevation = if (isDark) 4.dp else 1.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.04f)
+                        )
+                        .border(
+                            1.dp,
+                            if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .bounceClick { onViewDebtsClicked() },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF0B1733) else Color.White
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF059669), Color(0xFF10B981))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Handshake,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Text(
+                                text = "${appString(StringKeys.DEBTS)} >",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Text(
-                            text = "Upcoming Bill: $billTitle",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = appString(StringKeys.DEBTS),
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (isDark) PureWhite else Color(0xFF080F20)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Amount: ${formatBdt(billAmount, language)} • Due: $billDueDate",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = if (activeDebts.isNotEmpty()) {
+                                "${appString(StringKeys.TO_RECEIVE)} ${formatCurrency(lentSum, language)} • ${appString(StringKeys.TO_PAY)} ${formatCurrency(borrowSum, language)}"
+                            } else {
+                                appString(StringKeys.NO_DEBTS)
+                            },
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                            maxLines = 1
                         )
                     }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF59E0B).copy(alpha = 0.15f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
+                }
+
+                // Card 2: Habits
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .shadow(
+                            elevation = if (isDark) 4.dp else 1.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.04f)
+                        )
+                        .border(
+                            1.dp,
+                            if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .bounceClick { onViewHabitsClicked() },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF0B1733) else Color.White
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF0070F3), Color(0xFF38BDF8))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.EventRepeat,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Text(
+                                text = "${appString(StringKeys.HABITS)} >",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Text(
-                            text = "View",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            ),
-                            color = Color(0xFFF59E0B)
+                            text = appString(StringKeys.HABITS),
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (isDark) PureWhite else Color(0xFF080F20)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (nextHabit != null) {
+                                "${nextHabit.title.take(12)}: ${nextHabit.nextDueDate}"
+                            } else {
+                                appString(StringKeys.NO_HABITS)
+                            },
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                            maxLines = 1
                         )
                     }
                 }
             }
         }
 
-        // 5. Accounts Section
+        // 5. Accounts Section (Exact reference design)
         item {
+            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 10.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF))
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Accounts",
+                        text = appString(StringKeys.ACCOUNTS),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         ),
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = if (isDark) Color.White else Color(0xFF080F20)
                     )
                 }
                 TextButton(
@@ -516,15 +840,15 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF),
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Add Account",
+                        text = appString(StringKeys.ADD_ACCOUNT),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF)
                     )
                 }
             }
@@ -567,7 +891,7 @@ fun HomeScreen(
                 )
                 if (transactions.isNotEmpty()) {
                     TextButton(onClick = onViewAllStatementsClicked) {
-                        Text("See All", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text(appString(StringKeys.SEE_ALL), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -644,11 +968,142 @@ fun HomeScreen(
             }
         )
     }
+
+    if (showCountryDialog) {
+        CountryLanguageDialog(
+            currentLanguage = language,
+            onDismiss = { showCountryDialog = false },
+            onSelectLanguage = { newLang ->
+                onToggleLanguage(newLang)
+                showCountryDialog = false
+            }
+        )
+    }
 }
 
 /**
- * Clean static Quick Action Button component with high-fidelity 3D icons,
- * perfectly optimized with zero lag, zero battery drain, and no moving animations.
+ * Tilted Contactless Blue Card and 3D Gold Coin Stack Illustration
+ * matching the user's reference design.
+ */
+@Composable
+fun VisaCardCoinsIllustration(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .width(112.dp)
+            .height(72.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // 1. Tilted Contactless Blue Card
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-4).dp, y = 2.dp)
+                .rotate(-10f)
+                .width(78.dp)
+                .height(48.dp)
+                .shadow(6.dp, RoundedCornerShape(8.dp), spotColor = Color(0xFF0038A8).copy(alpha = 0.5f))
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF0284C7),
+                            Color(0xFF0369A1),
+                            Color(0xFF1E40AF)
+                        )
+                    )
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 6.dp, vertical = 5.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                // Mini chip
+                Box(
+                    modifier = Modifier
+                        .size(width = 12.dp, height = 9.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color(0xFFFBBF24))
+                )
+                // Contactless Wi-Fi symbol
+                Text(
+                    text = "•)))",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp
+                )
+            }
+            // Card magnetic lines / embossed styling
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .width(36.dp)
+                    .height(3.dp)
+                    .background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+            )
+        }
+
+        // 2. 3D Stack of Gold Coins in front of the card
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = (-2).dp, y = 6.dp)
+        ) {
+            // Coin 3 (Bottom)
+            Box(
+                modifier = Modifier
+                    .offset(x = (-8).dp, y = 8.dp)
+                    .size(width = 24.dp, height = 10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Color(0xFFD97706))
+                    .border(0.5.dp, Color(0xFFF59E0B), RoundedCornerShape(5.dp))
+            )
+            // Coin 2 (Middle)
+            Box(
+                modifier = Modifier
+                    .offset(x = (-8).dp, y = 3.dp)
+                    .size(width = 24.dp, height = 10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Color(0xFFF59E0B))
+                    .border(0.5.dp, Color(0xFFFCD34D), RoundedCornerShape(5.dp))
+            )
+            // Coin 1 (Top / Front with Taka symbol ৳)
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .shadow(4.dp, CircleShape, spotColor = Color(0xFF78350F).copy(alpha = 0.4f))
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFFDE047),
+                                Color(0xFFF59E0B),
+                                Color(0xFFD97706)
+                            )
+                        )
+                    )
+                    .border(1.dp, Color(0xFFFEF08A), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "৳",
+                    color = Color(0xFF78350F),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Clean Quick Action Button component with high-fidelity 3D icons,
+ * perfectly matching reference design in Dark and Lite modes.
  */
 @Composable
 fun QuickAction3DItem(
@@ -658,6 +1113,8 @@ fun QuickAction3DItem(
     testTag: String,
     onClick: () -> Unit
 ) {
+    val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -670,14 +1127,18 @@ fun QuickAction3DItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+                    .size(58.dp)
+                    .shadow(
+                        elevation = if (isDark) 3.dp else 2.dp,
+                        shape = RoundedCornerShape(18.dp),
+                        spotColor = if (isDark) glowColor.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.05f)
+                    )
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(if (isDark) Color(0xFF0C1833) else Color(0xFFFFFFFF))
                     .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(16.dp)
+                        width = 1.5.dp,
+                        color = if (isDark) glowColor.copy(alpha = 0.55f) else Color(0xFFE2E8F0),
+                        shape = RoundedCornerShape(18.dp)
                     )
             )
 
@@ -686,7 +1147,7 @@ fun QuickAction3DItem(
                 contentDescription = label,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(52.dp)
                     .clip(RoundedCornerShape(14.dp))
             )
         }
@@ -699,7 +1160,7 @@ fun QuickAction3DItem(
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.sp
             ),
-            color = MaterialTheme.colorScheme.onBackground,
+            color = if (isDark) Color.White else Color(0xFF080F20),
             maxLines = 1
         )
     }
@@ -712,6 +1173,8 @@ fun HomeAccountCard(
     language: com.example.util.AppLanguage,
     onClick: () -> Unit
 ) {
+    val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+
     val (icon, brandColor) = when (account.type) {
         AccountType.BKASH.name -> Icons.Default.PhoneAndroid to Color(0xFFE2136E)
         AccountType.NAGAD.name -> Icons.Default.PhoneAndroid to Color(0xFFF7931E)
@@ -719,78 +1182,107 @@ fun HomeAccountCard(
         AccountType.MFS.name -> Icons.Default.PhoneAndroid to Color(0xFF0284C7)
         AccountType.BANK.name -> Icons.Default.AccountBalance to Color(0xFF2563EB)
         AccountType.CASH_FLOW.name, AccountType.CASH.name -> Icons.Default.AttachMoney to Color(0xFF10B981)
-        else -> Icons.Default.AccountBalance to MaterialTheme.colorScheme.primary
+        else -> Icons.Default.AccountBalance to (if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF))
     }
 
     Card(
         modifier = Modifier
-            .width(160.dp)
-            .height(130.dp)
-            .shadow(2.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.05f))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
+            .width(165.dp)
+            .height(115.dp)
+            .shadow(
+                elevation = if (isDark) 3.dp else 1.5.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f)
+            )
+            .border(
+                width = 1.dp,
+                color = if (isDark) Color(0xFF152D5A) else Color(0xFFBFDBFE),
+                shape = RoundedCornerShape(20.dp)
+            )
             .bounceClick(scaleDown = 0.97f, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isDark) Color(0xFF0A1630) else Color(0xFFF0F7FF)
         )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(brandColor.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = brandColor,
-                        modifier = Modifier.size(20.dp)
-                    )
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Subtle wave accent
+            androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
+                val w = size.width
+                val h = size.height
+                val wavePath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(0f, h * 0.8f)
+                    cubicTo(w * 0.35f, h * 0.65f, w * 0.7f, h * 0.95f, w, h * 0.75f)
+                    lineTo(w, h)
+                    lineTo(0f, h)
+                    close()
                 }
-
-                // Clean active status dot
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp, end = 2.dp)
-                        .size(8.dp)
-                        .background(brandColor, CircleShape)
+                drawPath(
+                    path = wavePath,
+                    color = if (isDark) Color(0xFF0070F3).copy(alpha = 0.10f) else Color(0xFFBAE6FD).copy(alpha = 0.25f)
                 )
             }
 
-            Column {
-                Text(
-                    text = account.name,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isDark) brandColor.copy(alpha = 0.20f) else Color(0xFFDBEAFE)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (isDark) brandColor else Color(0xFF0066FF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                    // Clean active status dot
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 4.dp, end = 2.dp)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF))
+                    )
+                }
 
-                AnimatedBdtCounter(
-                    targetAmount = account.balance,
-                    language = language,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    isMasked = isHidden
-                )
+                Column {
+                    Text(
+                        text = account.name,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        ),
+                        color = if (isDark) Color.White else Color(0xFF080F20),
+                        maxLines = 1
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    AnimatedBdtCounter(
+                        targetAmount = account.balance,
+                        language = language,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        ),
+                        color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF),
+                        isMasked = isHidden
+                    )
+                }
             }
         }
     }
@@ -798,16 +1290,26 @@ fun HomeAccountCard(
 
 @Composable
 fun HomeAddAccountCard(onClick: () -> Unit) {
+    val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+
     Card(
         modifier = Modifier
             .width(140.dp)
-            .height(130.dp)
-            .shadow(1.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.04f))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
+            .height(115.dp)
+            .shadow(
+                elevation = if (isDark) 2.dp else 1.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.04f)
+            )
+            .border(
+                width = 1.dp,
+                color = if (isDark) Color(0xFF152D5A) else Color(0xFFBFDBFE),
+                shape = RoundedCornerShape(20.dp)
+            )
             .bounceClick(scaleDown = 0.96f, onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isDark) Color(0xFF0A1630) else Color(0xFFF0F7FF)
         )
     ) {
         Box(
@@ -817,25 +1319,26 @@ fun HomeAddAccountCard(onClick: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (isDark) Color(0xFF0070F3).copy(alpha = 0.25f) else Color(0xFFDBEAFE)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Add Account",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF),
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Add Account",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 12.sp
                     ),
-                    color = MaterialTheme.colorScheme.primary
+                    color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF)
                 )
             }
         }

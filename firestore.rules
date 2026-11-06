@@ -106,6 +106,20 @@ service cloud.firestore {
              (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
     }
 
+    function isValidHabitRoutine(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 100 &&
+             (!('lastDoneDate' in data) || data.lastDoneDate is string) &&
+             (!('nextDueDate' in data) || data.nextDueDate is string) &&
+             (!('intervalDays' in data) || (data.intervalDays is int && data.intervalDays >= 1)) &&
+             (!('intervalLabel' in data) || data.intervalLabel is string) &&
+             (!('estimatedCost' in data) || data.estimatedCost is int || data.estimatedCost is float) &&
+             (!('note' in data) || data.note is string) &&
+             (!('totalTimesCompleted' in data) || (data.totalTimesCompleted is int && data.totalTimesCompleted >= 0)) &&
+             (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
+    }
+
     match /users/{userId} {
       allow read, delete: if isOwner(userId);
       allow create, update: if isOwner(userId) && isValidUserProfile(request.resource.data);
@@ -138,6 +152,11 @@ service cloud.firestore {
       match /debts/{debtId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidDebt(request.resource.data);
+      }
+
+      match /habits/{habitId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidHabitRoutine(request.resource.data);
       }
     }
   }
