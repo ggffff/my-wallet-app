@@ -150,13 +150,11 @@ class MainActivity : ComponentActivity() {
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        // App Check intent wiring offloaded to background thread to keep main thread and window rendering free
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                configureAppCheck(applicationContext, intent)
-            } catch (e: Throwable) {
-                Log.e("MainActivity", "Error during configureAppCheck", e)
-            }
+        // App Check intent wiring before setContent
+        try {
+            configureAppCheck(this, intent)
+        } catch (e: Throwable) {
+            Log.e("MainActivity", "Error during configureAppCheck", e)
         }
 
         // EdgeToEdge invocation
@@ -216,6 +214,7 @@ class MainActivity : ComponentActivity() {
                             SplashScreen(onSplashFinished = { showSplash = false })
                         } else if (currentUser == null && !isGuestMode) {
                             AuthScreen(
+                                currentLanguage = appLanguage,
                                 onAuthSuccess = {
                                     val user = Firebase.auth.currentUser ?: auth?.currentUser
                                     Log.d("MainActivity", "Google sign-in succeeded, entering Dashboard directly: ${user?.uid}")
@@ -231,6 +230,10 @@ class MainActivity : ComponentActivity() {
                                     isDarkTheme = dark
                                     currentTheme = if (dark) AppTheme.CYBER_NEON else AppTheme.FROSTED_PEARL
                                     prefs.edit().putString("selected_theme", currentTheme.id).apply()
+                                },
+                                onToggleLanguage = { newLang ->
+                                    appLanguage = newLang
+                                    prefs.edit().putString("selected_language", newLang.code).apply()
                                 }
                             )
                         } else {

@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ui.theme.LocalAppTheme
+import com.example.util.StringKeys
+import com.example.util.appString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -99,7 +101,7 @@ fun SplashScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "My Wallet",
+                text = appString(StringKeys.APP_NAME),
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 26.sp,
@@ -112,7 +114,7 @@ fun SplashScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Your Smart Personal Finance Companion",
+                text = appString(StringKeys.TAGLINE),
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp

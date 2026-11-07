@@ -60,6 +60,10 @@ import androidx.core.os.ConfigurationCompat
 import coil.compose.AsyncImage
 import com.example.data.model.UserProfile
 import com.example.ui.motion.bounceClick
+import com.example.util.AppLanguage
+import com.example.util.LocalAppLanguage
+import com.example.util.StringKeys
+import com.example.util.appString
 import kotlinx.coroutines.delay
 import java.util.Calendar
 import java.util.Locale
@@ -171,6 +175,40 @@ fun getTimeGreeting(phase: TimePhase, isBengali: Boolean): String {
 }
 
 /**
+ * Returns greeting string according to phase and selected user AppLanguage.
+ */
+fun getTimeGreeting(phase: TimePhase, language: AppLanguage): String {
+    return when (language.langFamily) {
+        "bn" -> phase.bengaliGreeting
+        "ar" -> when (phase) {
+            TimePhase.MORNING -> "صباح الخير"
+            TimePhase.NOON, TimePhase.AFTERNOON -> "مساء الخير"
+            TimePhase.EVENING -> "مساء النور"
+            TimePhase.NIGHT -> "تصبح على خير"
+        }
+        "de" -> when (phase) {
+            TimePhase.MORNING -> "Guten Morgen"
+            TimePhase.NOON, TimePhase.AFTERNOON -> "Guten Tag"
+            TimePhase.EVENING -> "Guten Abend"
+            TimePhase.NIGHT -> "Gute Nacht"
+        }
+        "fr" -> when (phase) {
+            TimePhase.MORNING -> "Bonjour"
+            TimePhase.NOON, TimePhase.AFTERNOON -> "Bon après-midi"
+            TimePhase.EVENING -> "Bonsoir"
+            TimePhase.NIGHT -> "Bonne nuit"
+        }
+        "nl" -> when (phase) {
+            TimePhase.MORNING -> "Goedemorgen"
+            TimePhase.NOON, TimePhase.AFTERNOON -> "Goedemiddag"
+            TimePhase.EVENING -> "Goedenavond"
+            TimePhase.NIGHT -> "Goedenacht"
+        }
+        else -> phase.englishGreeting
+    }
+}
+
+/**
  * Convenience helper to get greeting from hour directly.
  */
 fun getTimeGreetingForHour(hour: Int, isBengali: Boolean): String {
@@ -243,14 +281,14 @@ fun TimeBasedGreetingHeader(
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {}
 ) {
-    val isBengali = rememberSystemIsBengali()
+    val language = LocalAppLanguage.current
     val currentHour = rememberCurrentHour(fixedHour)
     val phase = remember(currentHour) { getTimePhase(currentHour) }
-    val greetingText = remember(phase, isBengali) { getTimeGreeting(phase, isBengali) }
+    val greetingText = remember(phase, language) { getTimeGreeting(phase, language) }
     val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
 
     val userName = remember(userProfile?.displayName) {
-        userProfile?.displayName?.ifBlank { "NU Sifat" } ?: "NU Sifat"
+        userProfile?.displayName?.ifBlank { "User" } ?: "User"
     }
 
     Row(
@@ -334,7 +372,7 @@ fun TimeBasedGreetingHeader(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = "My Wallet",
+                    text = appString(StringKeys.APP_NAME),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,

@@ -149,6 +149,9 @@ object StringKeys {
     const val WITHDRAW = "withdraw"
     
     // Auth & Settings
+    const val TAGLINE = "tagline"
+    const val OR = "or"
+    const val SIGNING_IN = "signing_in"
     const val SIGN_IN_WITH_GOOGLE = "sign_in_with_google"
     const val CONTINUE_GUEST = "continue_guest"
     const val SIGN_OUT = "sign_out"
@@ -268,6 +271,9 @@ private val enStrings = mapOf(
     StringKeys.REMAINING to "Remaining",
     StringKeys.ADD_FUNDS to "Add Money",
     StringKeys.WITHDRAW to "Withdraw",
+    StringKeys.TAGLINE to "Your Smart Personal Finance Companion",
+    StringKeys.OR to "OR",
+    StringKeys.SIGNING_IN to "Signing in...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "Sign in with Google",
     StringKeys.CONTINUE_GUEST to "Continue as Guest",
     StringKeys.SIGN_OUT to "Sign Out",
@@ -385,6 +391,9 @@ private val bnStrings = mapOf(
     StringKeys.REMAINING to "বাকি আছে",
     StringKeys.ADD_FUNDS to "টাকা জমা",
     StringKeys.WITHDRAW to "টাকা উত্তোলন",
+    StringKeys.TAGLINE to "আপনার স্মার্ট পার্সোনাল ফাইন্যান্স সহযোগী",
+    StringKeys.OR to "অথবা",
+    StringKeys.SIGNING_IN to "লগইন হচ্ছে...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "গুগল দিয়ে সাইন ইন",
     StringKeys.CONTINUE_GUEST to "গেস্ট হিসেবে চালিয়ে যান",
     StringKeys.SIGN_OUT to "সাইন আউট",
@@ -502,6 +511,9 @@ private val arStrings = mapOf(
     StringKeys.REMAINING to "المتبقي",
     StringKeys.ADD_FUNDS to "إضافة أموال",
     StringKeys.WITHDRAW to "سحب أموال",
+    StringKeys.TAGLINE to "رفيقك الذكي في إدارة أموالك الشخصية",
+    StringKeys.OR to "أو",
+    StringKeys.SIGNING_IN to "جارٍ تسجيل الدخول...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "تسجيل الدخول عبر Google",
     StringKeys.CONTINUE_GUEST to "المتابعة كضيف",
     StringKeys.SIGN_OUT to "تسجيل الخروج",
@@ -529,7 +541,7 @@ private val arStrings = mapOf(
 
 // 4. German Translations (de)
 private val deStrings = mapOf(
-    StringKeys.APP_NAME to "My Wallet",
+    StringKeys.APP_NAME to "Meine Geldbörse",
     StringKeys.NET_BALANCE to "Nettosaldo",
     StringKeys.TOTAL_INCOME to "Gesamteinnahmen",
     StringKeys.TOTAL_EXPENSE to "Gesamtausgaben",
@@ -619,6 +631,9 @@ private val deStrings = mapOf(
     StringKeys.REMAINING to "Verbleibend",
     StringKeys.ADD_FUNDS to "Guthaben einzahlen",
     StringKeys.WITHDRAW to "Guthaben entnehmen",
+    StringKeys.TAGLINE to "Ihr intelligenter persönlicher Finanzbegleiter",
+    StringKeys.OR to "ODER",
+    StringKeys.SIGNING_IN to "Anmeldung läuft...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "Mit Google anmelden",
     StringKeys.CONTINUE_GUEST to "Als Gast fortfahren",
     StringKeys.SIGN_OUT to "Abmelden",
@@ -646,7 +661,7 @@ private val deStrings = mapOf(
 
 // 5. French Translations (fr)
 private val frStrings = mapOf(
-    StringKeys.APP_NAME to "My Wallet",
+    StringKeys.APP_NAME to "Mon Portefeuille",
     StringKeys.NET_BALANCE to "Solde Net",
     StringKeys.TOTAL_INCOME to "Revenu Total",
     StringKeys.TOTAL_EXPENSE to "Dépenses Totales",
@@ -736,6 +751,9 @@ private val frStrings = mapOf(
     StringKeys.REMAINING to "Restant",
     StringKeys.ADD_FUNDS to "Ajouter des fonds",
     StringKeys.WITHDRAW to "Retirer",
+    StringKeys.TAGLINE to "Votre compagnon intelligent de finances personnelles",
+    StringKeys.OR to "OU",
+    StringKeys.SIGNING_IN to "Connexion en cours...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "Se connecter avec Google",
     StringKeys.CONTINUE_GUEST to "Continuer en tant qu'invité",
     StringKeys.SIGN_OUT to "Se déconnecter",
@@ -763,7 +781,7 @@ private val frStrings = mapOf(
 
 // 6. Dutch Translations (nl)
 private val nlStrings = mapOf(
-    StringKeys.APP_NAME to "My Wallet",
+    StringKeys.APP_NAME to "Mijn Portemonnee",
     StringKeys.NET_BALANCE to "Netto Saldo",
     StringKeys.TOTAL_INCOME to "Totaal Inkomen",
     StringKeys.TOTAL_EXPENSE to "Totale Uitgaven",
@@ -853,6 +871,9 @@ private val nlStrings = mapOf(
     StringKeys.REMAINING to "Resterend",
     StringKeys.ADD_FUNDS to "Geld toevoegen",
     StringKeys.WITHDRAW to "Opnemen",
+    StringKeys.TAGLINE to "Uw slimme persoonlijke financiële metgezel",
+    StringKeys.OR to "OF",
+    StringKeys.SIGNING_IN to "Inloggen...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "Inloggen met Google",
     StringKeys.CONTINUE_GUEST to "Doorgaan als gast",
     StringKeys.SIGN_OUT to "Uitloggen",

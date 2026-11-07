@@ -81,9 +81,15 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.compose.foundation.layout.fillMaxHeight
 import com.example.R
+import com.example.ui.dialogs.CountryLanguageDialog
 import com.example.ui.theme.LocalAppTheme
+import com.example.util.AppLanguage
 import com.example.util.AppSignatureHelper
+import com.example.util.LocalAppLanguage
+import com.example.util.StringKeys
+import com.example.util.appString
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
@@ -146,14 +152,17 @@ private val particles = listOf(
  */
 @Composable
 fun AuthScreen(
+    currentLanguage: AppLanguage = LocalAppLanguage.current,
     onAuthSuccess: () -> Unit,
     onExploreAsGuest: () -> Unit = {},
-    onToggleDarkTheme: (Boolean) -> Unit = {}
+    onToggleDarkTheme: (Boolean) -> Unit = {},
+    onToggleLanguage: (AppLanguage) -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
+    var showCountryDialog by remember { mutableStateOf(false) }
 
     val isDark = LocalAppTheme.current.isDark
     val scrollState = rememberScrollState()
@@ -390,14 +399,42 @@ fun AuthScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top Row: Compact Theme Toggle (Sun / Moon) at Top-Right Corner
+                // Top Row: Language Selector + Compact Theme Toggle (Sun / Moon)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp, end = 4.dp),
-                    horizontalArrangement = Arrangement.End,
+                        .padding(top = 4.dp, start = 2.dp, end = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Country & Language Selector Pill
+                    Surface(
+                        onClick = { showCountryDialog = true },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isDark) Color(0xFF0F1E40).copy(alpha = 0.90f) else Color.White,
+                        border = BorderStroke(1.dp, if (isDark) Color(0xFF1E3A8A) else Color(0xFFCBD5E1)),
+                        shadowElevation = if (isDark) 0.dp else 2.dp,
+                        modifier = Modifier
+                            .height(42.dp)
+                            .testTag("auth_language_selector")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp)
+                                .fillMaxHeight(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(text = currentLanguage.flagEmoji, fontSize = 18.sp)
+                            Text(
+                                text = currentLanguage.label,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isDark) Color.White else Color(0xFF0F172A)
+                            )
+                        }
+                    }
+
+                    // Theme Toggle
                     Surface(
                         onClick = { onToggleDarkTheme(!isDark) },
                         shape = CircleShape,
@@ -531,37 +568,24 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // App Name: "My" (white/dark) + "Wallet" (cyan/blue)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.testTag("app_title_row")
-                    ) {
-                        Text(
-                            text = "My ",
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 38.sp,
-                                letterSpacing = 0.5.sp
-                            ),
-                            color = if (isDark) Color.White else Color(0xFF0F172A)
-                        )
-                        Text(
-                            text = "Wallet",
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 38.sp,
-                                letterSpacing = 0.5.sp
-                            ),
-                            color = Color(0xFF38BDF8) // Electric Cyan/Blue matching reference
-                        )
-                    }
+                    // App Name: Dynamic localization (e.g. "My Wallet" or "আমার ওয়ালেট")
+                    Text(
+                        text = appString(StringKeys.APP_NAME),
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 36.sp,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = if (isDark) Color.White else Color(0xFF0F172A),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("app_title_text")
+                    )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Tagline
                     Text(
-                        text = "Your Smart Personal Finance Companion",
+                        text = appString(StringKeys.TAGLINE),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Medium,
                             fontSize = 15.sp,
@@ -629,7 +653,7 @@ fun AuthScreen(
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
-                                    text = "Signing in...",
+                                    text = appString(StringKeys.SIGNING_IN),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 16.sp,
@@ -650,7 +674,7 @@ fun AuthScreen(
                                         .background(Color(0xFFE2E8F0))
                                 )
                                 Text(
-                                    text = "Sign in with Google",
+                                    text = appString(StringKeys.SIGN_IN_WITH_GOOGLE),
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 16.sp,
@@ -678,7 +702,7 @@ fun AuthScreen(
                                 .background(if (isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1))
                         )
                         Text(
-                            text = "OR",
+                            text = appString(StringKeys.OR),
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
@@ -724,7 +748,7 @@ fun AuthScreen(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "Continue as Guest",
+                                text = appString(StringKeys.CONTINUE_GUEST),
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 16.sp,
@@ -782,6 +806,17 @@ fun AuthScreen(
                 },
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
+            )
+        }
+
+        if (showCountryDialog) {
+            CountryLanguageDialog(
+                currentLanguage = currentLanguage,
+                onDismiss = { showCountryDialog = false },
+                onSelectLanguage = { newLang ->
+                    onToggleLanguage(newLang)
+                    showCountryDialog = false
+                }
             )
         }
     }

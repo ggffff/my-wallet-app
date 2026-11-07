@@ -133,7 +133,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
                 "language" to profile.language,
                 "themeMode" to profile.themeMode,
                 "email" to (auth.currentUser?.email ?: profile.email),
-                "photoUrl" to (auth.currentUser?.photoUrl?.toString() ?: profile.photoUrl),
+                "photoUrl" to if (profile.photoUrl.isNotBlank()) profile.photoUrl else (auth.currentUser?.photoUrl?.toString() ?: ""),
                 "updatedAt" to FieldValue.serverTimestamp()
             )
             docRef.set(payload, SetOptions.merge()).await()
