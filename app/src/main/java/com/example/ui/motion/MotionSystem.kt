@@ -160,7 +160,8 @@ fun Modifier.staggeredEntrance(
 @Composable
 fun AnimatedBdtCounter(
     targetAmount: Double,
-    language: AppLanguage,
+    language: com.example.util.AppLanguage = com.example.util.LocalAppLanguage.current,
+    currency: com.example.util.AppCurrency = com.example.util.LocalAppCurrency.current,
     style: TextStyle,
     color: Color = MaterialTheme.colorScheme.onSurface,
     isMasked: Boolean = false,
@@ -175,13 +176,13 @@ fun AnimatedBdtCounter(
     ) { masked ->
         if (masked) {
             Text(
-                text = "৳ ••••••••",
+                text = "${currency.symbol} ••••••••",
                 style = style,
                 color = color
             )
         } else {
             Text(
-                text = formatBdt(targetAmount, language),
+                text = currency.format(targetAmount),
                 style = style,
                 color = color
             )

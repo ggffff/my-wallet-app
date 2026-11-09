@@ -59,7 +59,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
                 displayName = "Guest User",
                 currency = "BDT",
                 language = "en",
-                themeMode = "frosted_pearl"
+                themeMode = "cyber_neon"
             )
         )
         private val guestAccounts = MutableStateFlow<List<Account>>(

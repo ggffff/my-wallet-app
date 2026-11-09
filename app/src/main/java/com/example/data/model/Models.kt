@@ -30,7 +30,7 @@ data class UserProfile(
     val photoUrl: String = "",
     val currency: String = "BDT",
     val language: String = "en",
-    val themeMode: String = "dark",
+    val themeMode: String = "cyber_neon",
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
 )

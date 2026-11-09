@@ -46,6 +46,47 @@ enum class AppLanguage(
 
 val LocalAppLanguage = staticCompositionLocalOf { AppLanguage.BANGLADESH }
 
+enum class AppCurrency(
+    val code: String,
+    val symbol: String,
+    val displayName: String,
+    val countryName: String,
+    val flagEmoji: String
+) {
+    BDT("BDT", "৳", "Bangladeshi Taka", "Bangladesh", "🇧🇩"),
+    USD("USD", "$", "US Dollar", "United States", "🇺🇸"),
+    EUR("EUR", "€", "Euro", "Eurozone", "🇪🇺"),
+    GBP("GBP", "£", "British Pound", "United Kingdom", "🇬🇧"),
+    INR("INR", "₹", "Indian Rupee", "India", "🇮🇳"),
+    SAR("SAR", "﷼", "Saudi Riyal", "Saudi Arabia", "🇸🇦"),
+    AED("AED", "د.إ", "UAE Dirham", "United Arab Emirates", "🇦🇪"),
+    CAD("CAD", "$", "Canadian Dollar", "Canada", "🇨🇦"),
+    AUD("AUD", "$", "Australian Dollar", "Australia", "🇦🇺"),
+    CHF("CHF", "₣", "Swiss Franc", "Switzerland", "🇨🇭"),
+    JPY("JPY", "¥", "Japanese Yen", "Japan", "🇯🇵"),
+    MYR("MYR", "RM", "Malaysian Ringgit", "Malaysia", "🇲🇾"),
+    SGD("SGD", "S$", "Singapore Dollar", "Singapore", "🇸🇬"),
+    QAR("QAR", "ر.ق", "Qatari Riyal", "Qatar", "🇶🇦"),
+    KWD("KWD", "د.ك", "Kuwaiti Dinar", "Kuwait", "🇰🇼");
+
+    fun format(amount: Double): String {
+        val formatted = NumberFormat.getNumberInstance(Locale.US).format(amount)
+        return when (code) {
+            "AED", "SAR", "QAR", "KWD" -> "$formatted $symbol"
+            else -> "$symbol $formatted"
+        }
+    }
+
+    companion object {
+        fun fromCode(code: String?): AppCurrency {
+            if (code == null) return BDT
+            return entries.firstOrNull { it.code.equals(code, ignoreCase = true) } ?: BDT
+        }
+    }
+}
+
+val LocalAppCurrency = staticCompositionLocalOf { AppCurrency.BDT }
+
 object StringKeys {
     const val APP_NAME = "app_name"
     const val NET_BALANCE = "net_balance"
@@ -929,10 +970,18 @@ fun formatCurrency(amount: Double, language: AppLanguage = AppLanguage.BANGLADES
     }
 }
 
+fun formatCurrency(amount: Double, currency: AppCurrency): String {
+    return currency.format(amount)
+}
+
 /**
  * Backward-compatible helper method that formats amounts in BDT currency (৳).
  */
 fun formatBdt(amount: Double, language: AppLanguage = AppLanguage.BANGLADESH): String {
     val formatted = NumberFormat.getNumberInstance(Locale.US).format(amount)
     return "৳ $formatted"
+}
+
+fun formatBdt(amount: Double, currency: AppCurrency): String {
+    return currency.format(amount)
 }

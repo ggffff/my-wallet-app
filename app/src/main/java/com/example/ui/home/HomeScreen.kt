@@ -88,7 +88,10 @@ import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
 import com.example.ui.theme.PureWhite
 import com.example.ui.dialogs.CountryLanguageDialog
+import com.example.ui.dialogs.CurrencyDialog
+import com.example.util.AppCurrency
 import com.example.util.AppLanguage
+import com.example.util.LocalAppCurrency
 import com.example.util.LocalAppLanguage
 import com.example.util.StringKeys
 import com.example.util.appString
@@ -114,12 +117,14 @@ fun HomeScreen(
     onViewHabitsClicked: () -> Unit = {},
     onOpenAiAdvisor: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    onToggleLanguage: (AppLanguage) -> Unit = {}
+    onToggleLanguage: (AppLanguage) -> Unit = {},
+    currentCurrency: AppCurrency = LocalAppCurrency.current,
+    onSelectCurrency: (AppCurrency) -> Unit = {}
 ) {
     val language = LocalAppLanguage.current
     var isBalanceHidden by remember { mutableStateOf(false) }
     var accountToUpdate by remember { mutableStateOf<Account?>(null) }
-    var showCountryDialog by remember { mutableStateOf(false) }
+    var showCurrencyDialog by remember { mutableStateOf(false) }
 
     val netBalance = remember(accounts) {
         accounts.sumOf { it.balance }
@@ -146,7 +151,7 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.Transparent)
             .testTag("home_screen"),
         contentPadding = PaddingValues(bottom = 90.dp)
     ) {
@@ -286,22 +291,22 @@ fun HomeScreen(
                                 }
                             }
 
-                            // Dynamic Country & Currency pill dropdown: e.g. 🇧🇩 BDT (৳) ▾
+                            // Currency pill dropdown: e.g. ৳ BDT ▾
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(if (isDark) Color.White.copy(alpha = 0.16f) else Color(0xFFE0F2FE))
                                     .border(1.dp, if (isDark) Color.White.copy(alpha = 0.25f) else Color(0xFFBFDBFE), RoundedCornerShape(14.dp))
-                                    .clickable { showCountryDialog = true }
+                                    .clickable { showCurrencyDialog = true }
                                     .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 Text(
-                                    text = "${language.flagEmoji} ${language.currencyCode} (${language.currencySymbol}) ▾",
+                                    text = "${currentCurrency.symbol} ${currentCurrency.code} ▾",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp
                                     ),
-                                    color = if (isDark) Color.White else Color(0xFF080F20)
+                                    color = if (isDark) Color.White else Color(0xFF0284C7)
                                 )
                             }
                         }
@@ -317,6 +322,7 @@ fun HomeScreen(
                             AnimatedBdtCounter(
                                 targetAmount = netBalance,
                                 language = language,
+                                currency = currentCurrency,
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 36.sp,
@@ -378,6 +384,7 @@ fun HomeScreen(
                                         AnimatedBdtCounter(
                                             targetAmount = totalIncome,
                                             language = language,
+                                            currency = currentCurrency,
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 15.sp
@@ -430,6 +437,7 @@ fun HomeScreen(
                                         AnimatedBdtCounter(
                                             targetAmount = totalExpense,
                                             language = language,
+                                            currency = currentCurrency,
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 15.sp
@@ -453,6 +461,7 @@ fun HomeScreen(
         // 4. Bills & Dues (Calendar and Clock)
         // 5. AI Tips (AI Lightbulb)
         item {
+            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -462,7 +471,7 @@ fun HomeScreen(
             ) {
                 // Picture 1: Add Income
                 QuickAction3DItem(
-                    drawableRes = R.drawable.img_quick_add_income,
+                    drawableRes = if (isDark) R.drawable.img_quick_add_income else R.drawable.img_quick_income_light,
                     label = appString(StringKeys.ADD_INCOME),
                     glowColor = IncomeGreen,
                     testTag = "quick_action_add_income",
@@ -471,7 +480,7 @@ fun HomeScreen(
 
                 // Picture 2: Add Spent
                 QuickAction3DItem(
-                    drawableRes = R.drawable.img_quick_add_spent,
+                    drawableRes = if (isDark) R.drawable.img_quick_add_spent else R.drawable.img_quick_spent_light,
                     label = appString(StringKeys.ADD_EXPENSE),
                     glowColor = ExpenseRed,
                     testTag = "quick_action_add_spent",
@@ -480,7 +489,7 @@ fun HomeScreen(
 
                 // Picture 3: Saving Goals (Target with coins - NO PIGGY BANK)
                 QuickAction3DItem(
-                    drawableRes = R.drawable.img_quick_savings_goal,
+                    drawableRes = if (isDark) R.drawable.img_quick_savings_goal else R.drawable.img_quick_goals_light,
                     label = appString(StringKeys.SAVING_GOALS),
                     glowColor = Color(0xFF9333EA),
                     testTag = "quick_action_saving_goals",
@@ -489,7 +498,7 @@ fun HomeScreen(
 
                 // Picture 4: Bills & Dues (Calendar and Clock)
                 QuickAction3DItem(
-                    drawableRes = R.drawable.img_quick_bills_dues,
+                    drawableRes = if (isDark) R.drawable.img_quick_bills_dues else R.drawable.img_quick_bills_light,
                     label = appString(StringKeys.BILLS_AND_DUES),
                     glowColor = Color(0xFF0284C7),
                     testTag = "quick_action_bills_dues",
@@ -498,7 +507,7 @@ fun HomeScreen(
 
                 // Picture 5: AI Tips (AI Lightbulb)
                 QuickAction3DItem(
-                    drawableRes = R.drawable.img_quick_ai_tips,
+                    drawableRes = if (isDark) R.drawable.img_quick_ai_tips else R.drawable.img_quick_ai_light,
                     label = appString(StringKeys.AI_TIPS),
                     glowColor = Color(0xFFF59E0B),
                     testTag = "quick_action_ai_tips",
@@ -969,13 +978,13 @@ fun HomeScreen(
         )
     }
 
-    if (showCountryDialog) {
-        CountryLanguageDialog(
-            currentLanguage = language,
-            onDismiss = { showCountryDialog = false },
-            onSelectLanguage = { newLang ->
-                onToggleLanguage(newLang)
-                showCountryDialog = false
+    if (showCurrencyDialog) {
+        CurrencyDialog(
+            currentCurrency = currentCurrency,
+            onDismiss = { showCurrencyDialog = false },
+            onSelectCurrency = { selected ->
+                onSelectCurrency(selected)
+                showCurrencyDialog = false
             }
         )
     }
@@ -1125,31 +1134,73 @@ fun QuickAction3DItem(
             modifier = Modifier.size(62.dp),
             contentAlignment = Alignment.Center
         ) {
+            // Ambient soft neon radial glow matching the icon's color
             Box(
                 modifier = Modifier
-                    .size(58.dp)
-                    .shadow(
-                        elevation = if (isDark) 3.dp else 2.dp,
-                        shape = RoundedCornerShape(18.dp),
-                        spotColor = if (isDark) glowColor.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.05f)
-                    )
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(if (isDark) Color(0xFF0C1833) else Color(0xFFFFFFFF))
-                    .border(
-                        width = 1.5.dp,
-                        color = if (isDark) glowColor.copy(alpha = 0.55f) else Color(0xFFE2E8F0),
-                        shape = RoundedCornerShape(18.dp)
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = if (isDark) listOf(
+                                glowColor.copy(alpha = 0.32f),
+                                Color.Transparent
+                            ) else listOf(
+                                glowColor.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        )
                     )
             )
 
-            Image(
-                painter = painterResource(id = drawableRes),
-                contentDescription = label,
-                contentScale = ContentScale.Fit,
+            // 3D Icon container:
+            // - In Dark mode: Pure black background (#000000) seamlessly blending with the home background
+            // - In Lite mode: Clean elevated white card (#FFFFFF) with subtle shadow and border
+            Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(14.dp))
-            )
+                    .size(58.dp)
+                    .then(
+                        if (isDark) {
+                            Modifier
+                                .shadow(
+                                    elevation = 3.dp,
+                                    shape = RoundedCornerShape(18.dp),
+                                    spotColor = Color(0xFF0052FE).copy(alpha = 0.25f)
+                                )
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFF0D1B38))
+                                .border(
+                                    width = 1.dp,
+                                    color = Color(0xFF1C3460),
+                                    shape = RoundedCornerShape(18.dp)
+                                )
+                        } else {
+                            Modifier
+                                .shadow(
+                                    elevation = 3.dp,
+                                    shape = RoundedCornerShape(18.dp),
+                                    spotColor = Color.Black.copy(alpha = 0.08f)
+                                )
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color.White)
+                                .border(
+                                    width = 1.2.dp,
+                                    color = Color(0xFFE2E8F0),
+                                    shape = RoundedCornerShape(18.dp)
+                                )
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = drawableRes),
+                    contentDescription = label,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(if (isDark) 0.dp else 4.dp)
+                        .clip(RoundedCornerShape(if (isDark) 18.dp else 14.dp))
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -1397,9 +1448,10 @@ fun HomeTransactionRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            val appCurrency = LocalAppCurrency.current
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = if (isHidden) "৳ •••" else "${if (isIncome) "+" else "-"} ${formatBdt(txn.amount, language)}",
+                    text = if (isHidden) "${appCurrency.symbol} •••" else "${if (isIncome) "+" else "-"} ${appCurrency.format(txn.amount)}",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = tintColor
                 )

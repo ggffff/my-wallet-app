@@ -43,8 +43,12 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Verified
 import com.example.ui.dialogs.CountryLanguageDialog
+import com.example.ui.dialogs.CurrencyDialog
+import com.example.util.AppCurrency
+import com.example.util.LocalAppCurrency
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Shield
@@ -105,9 +109,11 @@ fun SettingsScreen(
     currentDarkTheme: Boolean = true,
     currentTheme: AppTheme = AppTheme.CYBER_NEON,
     currentLanguage: AppLanguage,
+    currentCurrency: AppCurrency = LocalAppCurrency.current,
     onToggleDarkTheme: (Boolean) -> Unit = {},
     onSelectTheme: (AppTheme) -> Unit = {},
     onToggleLanguage: (AppLanguage) -> Unit,
+    onSelectCurrency: (AppCurrency) -> Unit = {},
     onSaveProfile: (String, String) -> Unit,
     onSignOut: () -> Unit,
     onOpenGoals: () -> Unit = {},
@@ -128,6 +134,7 @@ fun SettingsScreen(
     }
 
     var showCountryDialog by remember { mutableStateOf(false) }
+    var showCurrencyDialog by remember { mutableStateOf(false) }
 
     // Universal Android Photo Picker & Gallery/Files Picker for Phone Uploads
     val saveImageFromUri: (Uri) -> Unit = { uri ->
@@ -509,10 +516,10 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF0F172A))
+                        .background(Color(0xFF0F1E3D))
                         .border(
                             width = if (isDarkSelected) 2.dp else 1.dp,
-                            color = if (isDarkSelected) activeTheme.primaryColor else Color(0xFF334155),
+                            color = if (isDarkSelected) activeTheme.primaryColor else Color(0xFF1E3566),
                             shape = RoundedCornerShape(16.dp)
                         )
                         .clickable {
@@ -534,7 +541,7 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF1E293B)),
+                                    .background(Color(0xFF14244B)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -547,12 +554,12 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
                                 Text(
-                                    text = "Dark Mode (ডার্ক মোড)",
+                                    text = "Midnight Blue (প্রিমিয়াম ডার্ক মোড)",
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     color = PureWhite
                                 )
                                 Text(
-                                    text = "Deep Navy (#080F20) • Blue gradient cards",
+                                    text = "Deep Navy & Indigo Gradient • Soft Blue Lighting",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF94A3B8)
                                 )
@@ -738,36 +745,70 @@ fun SettingsScreen(
                     }
                 }
 
-                // Currency Display (Synced with selected country)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                // Currency Selector Card (Independent currency selector)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(IncomeGreen.copy(alpha = if (activeTheme.isDark) 0.12f else 0.08f))
+                        .border(
+                            1.dp,
+                            IncomeGreen.copy(alpha = 0.25f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { showCurrencyDialog = true }
+                        .padding(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(IncomeGreen.copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = currentLanguage.currencySymbol,
-                            fontWeight = FontWeight.Bold,
-                            color = IncomeGreen,
-                            fontSize = 18.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "${currentLanguage.currencyCode} (${currentLanguage.currencySymbol})",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Currency for ${currentLanguage.countryName}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = currentCurrency.flagEmoji,
+                                fontSize = 28.sp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "${currentCurrency.symbol} ${currentCurrency.code}",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (activeTheme.isDark) PureWhite else Color(0xFF080F20)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "(${currentCurrency.displayName})",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = IncomeGreen
+                                    )
+                                }
+                                Text(
+                                    text = "Primary App Currency • ব্যালেন্স ও লেনদেনের মুদ্রা",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = if (activeTheme.isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(IncomeGreen)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Change >",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -956,6 +997,17 @@ fun SettingsScreen(
             onSelectLanguage = { newLang ->
                 onToggleLanguage(newLang)
                 showCountryDialog = false
+            }
+        )
+    }
+
+    if (showCurrencyDialog) {
+        CurrencyDialog(
+            currentCurrency = currentCurrency,
+            onDismiss = { showCurrencyDialog = false },
+            onSelectCurrency = { selected ->
+                onSelectCurrency(selected)
+                showCurrencyDialog = false
             }
         )
     }

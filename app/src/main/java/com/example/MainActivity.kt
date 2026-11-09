@@ -21,13 +21,21 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,6 +49,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Settings
 import com.example.ui.theme.LocalAppTheme
+import com.example.ui.theme.midnightAppBackground
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -112,7 +121,9 @@ import com.example.ui.theme.MyWalletTheme
 import com.example.ui.theme.PremiumBlue
 import com.example.ui.theme.PremiumPink
 import com.example.ui.theme.PureWhite
+import com.example.util.AppCurrency
 import com.example.util.AppLanguage
+import com.example.util.LocalAppCurrency
 import com.example.util.LocalAppLanguage
 import com.example.util.StringKeys
 import com.example.util.appString
@@ -168,16 +179,29 @@ class MainActivity : ComponentActivity() {
             val systemDark = isSystemInDarkTheme()
             val context = LocalContext.current
             val prefs = remember { context.getSharedPreferences("wallet_prefs", Context.MODE_PRIVATE) }
-            val savedThemeId = remember { prefs.getString("selected_theme", AppTheme.CYBER_NEON.id) ?: AppTheme.CYBER_NEON.id }
+            val savedThemeId = remember {
+                val existing = prefs.getString("selected_theme", null)
+                if (existing == null) {
+                    prefs.edit().putString("selected_theme", AppTheme.CYBER_NEON.id).apply()
+                    AppTheme.CYBER_NEON.id
+                } else {
+                    existing
+                }
+            }
             var currentTheme by remember { mutableStateOf(AppTheme.fromId(savedThemeId)) }
             var isDarkTheme by remember { mutableStateOf(currentTheme.isDark) }
             val savedLangCode = remember { prefs.getString("selected_language", AppLanguage.BANGLADESH.code) ?: AppLanguage.BANGLADESH.code }
             var appLanguage by remember { mutableStateOf(AppLanguage.fromCode(savedLangCode)) }
+            val savedCurrencyCode = remember { prefs.getString("selected_currency", AppCurrency.BDT.code) ?: AppCurrency.BDT.code }
+            var appCurrency by remember { mutableStateOf(AppCurrency.fromCode(savedCurrencyCode)) }
 
             var isGuestMode by remember { mutableStateOf(prefs.getBoolean("guest_mode_enabled", false)) }
 
             MyWalletTheme(appTheme = currentTheme, darkTheme = isDarkTheme) {
-                CompositionLocalProvider(LocalAppLanguage provides appLanguage) {
+                CompositionLocalProvider(
+                    LocalAppLanguage provides appLanguage,
+                    LocalAppCurrency provides appCurrency
+                ) {
                     var showSplash by remember { mutableStateOf(true) }
 
                     val auth = remember {
@@ -220,11 +244,13 @@ class MainActivity : ComponentActivity() {
                                     Log.d("MainActivity", "Google sign-in succeeded, entering Dashboard directly: ${user?.uid}")
                                     isGuestMode = false
                                     prefs.edit().putBoolean("guest_mode_enabled", false).apply()
+                                    prefs.edit().putString("selected_theme", currentTheme.id).apply()
                                     currentUser = user
                                 },
                                 onExploreAsGuest = {
                                     isGuestMode = true
                                     prefs.edit().putBoolean("guest_mode_enabled", true).apply()
+                                    prefs.edit().putString("selected_theme", currentTheme.id).apply()
                                 },
                                 onToggleDarkTheme = { dark ->
                                     isDarkTheme = dark
@@ -243,6 +269,7 @@ class MainActivity : ComponentActivity() {
                                 isDarkTheme = isDarkTheme,
                                 currentTheme = currentTheme,
                                 appLanguage = appLanguage,
+                                currentCurrency = appCurrency,
                                 onToggleDarkTheme = { dark ->
                                     isDarkTheme = dark
                                     currentTheme = if (dark) AppTheme.CYBER_NEON else AppTheme.FROSTED_PEARL
@@ -256,6 +283,10 @@ class MainActivity : ComponentActivity() {
                                 onToggleLanguage = { newLang ->
                                     appLanguage = newLang
                                     prefs.edit().putString("selected_language", newLang.code).apply()
+                                },
+                                onSelectCurrency = { newCurr ->
+                                    appCurrency = newCurr
+                                    prefs.edit().putString("selected_currency", newCurr.code).apply()
                                 },
                                 onSignOut = {
                                     signOut(this@MainActivity) {
@@ -280,9 +311,11 @@ fun MainWalletApp(
     isDarkTheme: Boolean,
     currentTheme: AppTheme = AppTheme.CYBER_NEON,
     appLanguage: AppLanguage,
+    currentCurrency: AppCurrency = LocalAppCurrency.current,
     onToggleDarkTheme: (Boolean) -> Unit,
     onSelectTheme: (AppTheme) -> Unit = {},
     onToggleLanguage: (AppLanguage) -> Unit,
+    onSelectCurrency: (AppCurrency) -> Unit = {},
     onSignOut: () -> Unit
 ) {
     val context = LocalContext.current
@@ -300,24 +333,18 @@ fun MainWalletApp(
 
     val prefs = remember { context.getSharedPreferences("wallet_prefs", Context.MODE_PRIVATE) }
 
-    // Robust theme persistence: prioritize saved preference and synchronize to Firestore so reloads never revert
+    // Robust theme persistence: prioritize active/saved preference and synchronize to Firestore
     LaunchedEffect(userProfile) {
         val remoteTheme = userProfile?.themeMode
-        val localThemeId = prefs.getString("selected_theme", null)
-        if (localThemeId != null) {
-            val localTheme = AppTheme.fromId(localThemeId)
-            if (currentTheme != localTheme) {
-                onSelectTheme(localTheme)
-            }
-            if (remoteTheme != localTheme.id && userProfile != null) {
-                try {
-                    repository.saveUserProfile(userProfile!!.copy(themeMode = localTheme.id))
-                } catch (_: Exception) {}
-            }
-        } else if (!remoteTheme.isNullOrBlank()) {
-            val remote = AppTheme.fromId(remoteTheme)
-            onSelectTheme(remote)
-            prefs.edit().putString("selected_theme", remote.id).apply()
+        val localThemeId = prefs.getString("selected_theme", currentTheme.id) ?: currentTheme.id
+        val localTheme = AppTheme.fromId(localThemeId)
+        if (currentTheme != localTheme) {
+            onSelectTheme(localTheme)
+        }
+        if (userProfile != null && remoteTheme != localTheme.id) {
+            try {
+                repository.saveUserProfile(userProfile!!.copy(themeMode = localTheme.id))
+            } catch (_: Exception) {}
         }
     }
 
@@ -356,6 +383,7 @@ fun MainWalletApp(
             currentScreen == Screen.CHATBOT
 
     Scaffold(
+        containerColor = if (isDarkTheme) Color.Transparent else MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (currentScreen != Screen.HOME) {
@@ -399,7 +427,7 @@ fun MainWalletApp(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
+                        containerColor = Color.Transparent,
                         titleContentColor = MaterialTheme.colorScheme.onBackground
                     )
                 )
@@ -407,48 +435,82 @@ fun MainWalletApp(
         },
         bottomBar = {
             if (!isSubScreen) {
-                // 4 Core Tabs with modern Pill Capsule Indicator design:
-                // Home, Accounts, Reports, Settings
-                NavigationBar(
-                    containerColor = if (isDarkTheme) Color(0xFF080F20) else Color(0xFFF4F7FF),
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.testTag("bottom_navigation_bar")
+                // Ultra-Premium Floating Glassmorphic Pill Island Navigation
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // 1. Home
-                    Animated3DBottomNavItem(
-                        selected = currentScreen == Screen.HOME,
-                        onClick = { currentScreen = Screen.HOME },
-                        icon = Icons.Default.AccountBalanceWallet,
-                        label = appString(StringKeys.HOME),
-                        glowColor = MaterialTheme.colorScheme.primary
-                    )
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(
+                                elevation = if (isDarkTheme) 20.dp else 14.dp,
+                                shape = RoundedCornerShape(28.dp),
+                                spotColor = if (isDarkTheme) Color(0xFF0070F3).copy(alpha = 0.45f) else Color(0x330038A8)
+                            )
+                            .border(
+                                width = 1.2.dp,
+                                brush = Brush.linearGradient(
+                                    if (isDarkTheme) listOf(
+                                        Color(0xFF38BDF8).copy(alpha = 0.5f),
+                                        Color(0xFF1E293B).copy(alpha = 0.3f),
+                                        Color(0xFF0052FE).copy(alpha = 0.5f)
+                                    ) else listOf(
+                                        Color.White,
+                                        Color(0xFFBFDBFE),
+                                        Color(0xFF93C5FD)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(28.dp)
+                            )
+                            .testTag("bottom_navigation_bar"),
+                        shape = RoundedCornerShape(28.dp),
+                        color = if (isDarkTheme) Color(0xF209142E) else Color(0xF7FFFFFF),
+                        tonalElevation = 8.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 6.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 1. Home
+                            PremiumBottomNavItem(
+                                selected = currentScreen == Screen.HOME,
+                                onClick = { currentScreen = Screen.HOME },
+                                icon = Icons.Default.AccountBalanceWallet,
+                                label = appString(StringKeys.HOME)
+                            )
 
-                    // 2. Accounts
-                    Animated3DBottomNavItem(
-                        selected = currentScreen == Screen.ACCOUNTS,
-                        onClick = { currentScreen = Screen.ACCOUNTS },
-                        icon = Icons.Default.CreditCard,
-                        label = appString(StringKeys.ACCOUNTS),
-                        glowColor = MaterialTheme.colorScheme.primary
-                    )
+                            // 2. Accounts
+                            PremiumBottomNavItem(
+                                selected = currentScreen == Screen.ACCOUNTS,
+                                onClick = { currentScreen = Screen.ACCOUNTS },
+                                icon = Icons.Default.CreditCard,
+                                label = appString(StringKeys.ACCOUNTS)
+                            )
 
-                    // 3. Reports
-                    Animated3DBottomNavItem(
-                        selected = currentScreen == Screen.REPORTS,
-                        onClick = { currentScreen = Screen.REPORTS },
-                        icon = Icons.Default.BarChart,
-                        label = appString(StringKeys.REPORTS),
-                        glowColor = MaterialTheme.colorScheme.primary
-                    )
+                            // 3. Reports
+                            PremiumBottomNavItem(
+                                selected = currentScreen == Screen.REPORTS,
+                                onClick = { currentScreen = Screen.REPORTS },
+                                icon = Icons.Default.BarChart,
+                                label = appString(StringKeys.REPORTS)
+                            )
 
-                    // 4. Settings
-                    Animated3DBottomNavItem(
-                        selected = currentScreen == Screen.SETTINGS,
-                        onClick = { currentScreen = Screen.SETTINGS },
-                        icon = Icons.Default.Settings,
-                        label = appString(StringKeys.SETTINGS),
-                        glowColor = MaterialTheme.colorScheme.primary
-                    )
+                            // 4. Settings
+                            PremiumBottomNavItem(
+                                selected = currentScreen == Screen.SETTINGS,
+                                onClick = { currentScreen = Screen.SETTINGS },
+                                icon = Icons.Default.Settings,
+                                label = appString(StringKeys.SETTINGS)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -456,6 +518,7 @@ fun MainWalletApp(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .midnightAppBackground(isDark = isDarkTheme)
                 .padding(innerPadding)
         ) {
             AnimatedContent(
@@ -512,7 +575,9 @@ fun MainWalletApp(
                         onViewHabitsClicked = { currentScreen = Screen.HABITS },
                         onOpenAiAdvisor = { currentScreen = Screen.CHATBOT },
                         onOpenSettings = { currentScreen = Screen.SETTINGS },
-                        onToggleLanguage = onToggleLanguage
+                        onToggleLanguage = onToggleLanguage,
+                        currentCurrency = currentCurrency,
+                        onSelectCurrency = onSelectCurrency
                     )
                     Screen.ACCOUNTS -> AccountsScreen(
                         accounts = accounts,
@@ -549,16 +614,18 @@ fun MainWalletApp(
                         currentDarkTheme = isDarkTheme,
                         currentTheme = currentTheme,
                         currentLanguage = appLanguage,
+                        currentCurrency = currentCurrency,
                         onToggleDarkTheme = onToggleDarkTheme,
                         onSelectTheme = onSelectThemeAndPersist,
                         onToggleLanguage = onToggleLanguage,
+                        onSelectCurrency = onSelectCurrency,
                         onSaveProfile = { name, avatar ->
                             coroutineScope.launch {
                                 repository.saveUserProfile(
                                     UserProfile(
                                         displayName = name,
                                         photoUrl = avatar,
-                                        currency = "BDT",
+                                        currency = currentCurrency.code,
                                         language = appLanguage.code,
                                         themeMode = currentTheme.id
                                     )
@@ -769,76 +836,110 @@ fun MainWalletApp(
 }
 
 /**
- * Bottom Navigation Item with pill capsule indicator matching design.
+ * Ultra-Premium Bottom Navigation Item with animated glowing capsule,
+ * spring bounce interaction, and neon micro-dot indicator.
  */
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.Animated3DBottomNavItem(
+private fun androidx.compose.foundation.layout.RowScope.PremiumBottomNavItem(
     selected: Boolean,
     onClick: () -> Unit,
     icon: ImageVector,
-    label: String,
-    glowColor: Color
+    label: String
 ) {
     val isDark = LocalAppTheme.current.isDark
-    val activePillBg = if (isDark) {
-        Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0070F3), Color(0xFF0284C7)))
-    } else {
-        Brush.horizontalGradient(listOf(Color(0xFFDBEAFE), Color(0xFFE0F2FE)))
-    }
-    val activeIconTint = if (isDark) Color.White else Color(0xFF0066FF)
-    val inactiveTint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.05f else 1.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "navScale"
+    )
 
-    NavigationBarItem(
-        selected = selected,
-        onClick = onClick,
-        icon = {
+    val activeGradient = if (isDark) {
+        Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0284C7), Color(0xFF00E5FF)))
+    } else {
+        Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0284C7)))
+    }
+
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .scale(scale)
+            .clip(RoundedCornerShape(20.dp))
+            .bounceClick(scaleDown = 0.94f) { onClick() }
+            .padding(vertical = 4.dp, horizontal = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             if (selected) {
+                // Active Glowing Capsule Pill
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .width(64.dp)
+                        .width(58.dp)
                         .height(34.dp)
-                        .shadow(if (isDark) 4.dp else 1.dp, RoundedCornerShape(17.dp), spotColor = if (isDark) Color(0xFF0070F3) else Color.Transparent)
-                        .background(activePillBg, shape = RoundedCornerShape(17.dp))
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(17.dp),
+                            spotColor = if (isDark) Color(0xFF00D2FF).copy(alpha = 0.65f) else Color(0xFF0052FE).copy(alpha = 0.45f)
+                        )
+                        .background(activeGradient, shape = RoundedCornerShape(17.dp))
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = activeIconTint,
-                        modifier = Modifier.size(22.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             } else {
+                // Inactive Muted Icon
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .width(64.dp)
+                        .width(58.dp)
                         .height(34.dp)
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = inactiveTint,
-                        modifier = Modifier.size(22.dp)
+                        tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-        },
-        label = {
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            // Text Label
             Text(
                 text = label,
                 fontSize = 11.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) (if (isDark) Color.White else Color(0xFF080F20)) else inactiveTint,
-                maxLines = 2,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                lineHeight = 13.sp
+                color = if (selected) {
+                    if (isDark) Color(0xFF38BDF8) else Color(0xFF0052FE)
+                } else {
+                    if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                },
+                maxLines = 1,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-        },
-        colors = NavigationBarItemDefaults.colors(
-            indicatorColor = Color.Transparent
-        )
-    )
+
+            // Active Glowing Micro-dot indicator
+            if (selected) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(if (isDark) Color(0xFF38BDF8) else Color(0xFF0052FE))
+                )
+            } else {
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
+    }
 }
 
 private fun signOut(context: Context, onComplete: () -> Unit) {

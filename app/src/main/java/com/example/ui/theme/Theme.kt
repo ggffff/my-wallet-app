@@ -34,12 +34,12 @@ enum class AppTheme(
     CYBER_NEON(
         id = "cyber_neon",
         displayName = "Dark Mode",
-        subtitle = "Deep Navy (#080F20) • Blue Gradient Cards",
+        subtitle = "Midnight Blue • Deep Navy & Indigo Gradient",
         isDark = true,
-        primaryColor = Color(0xFF38BDF8),
-        secondaryColor = Color(0xFF0070F3),
-        glowColor = Color(0xFF38BDF8),
-        previewBg = Color(0xFF080F20)
+        primaryColor = MidnightCyanHighlight,
+        secondaryColor = MidnightRoyalBlue,
+        glowColor = MidnightCyanHighlight,
+        previewBg = MidnightNavyDark
     ),
     MIDNIGHT_EMERALD(
         id = "midnight_emerald",
@@ -102,28 +102,28 @@ enum class AppTheme(
 
 val LocalAppTheme = compositionLocalOf { AppTheme.CYBER_NEON }
 
-// 1. Dark Mode Color Scheme (Deep Navy #080F20, Blue Gradient Cards, White Text)
+// 1. Premium Midnight Blue Dark Color Scheme (Deep Navy & Indigo Gradient, Distinct Navy Cards, Pure White Text)
 val CyberNeonColorScheme = darkColorScheme(
-    primary = Color(0xFF38BDF8),
+    primary = MidnightCyanHighlight,
     onPrimary = PureWhite,
-    primaryContainer = Color(0xFF0F1E40),
+    primaryContainer = MidnightCardElevated,
     onPrimaryContainer = Color(0xFFBAE6FD),
-    secondary = Color(0xFF0070F3),
+    secondary = MidnightRoyalBlue,
     onSecondary = PureWhite,
-    secondaryContainer = Color(0xFF0B1733),
-    onSecondaryContainer = Color(0xFF38BDF8),
+    secondaryContainer = Color(0xFF0C1938),
+    onSecondaryContainer = MidnightCyanHighlight,
     tertiary = IncomeGreen,
     onTertiary = PureWhite,
     error = ExpenseRed,
     onError = PureWhite,
-    background = Color(0xFF080F20), // Deep Navy #080F20 as per specification
+    background = MidnightNavyDark, // Deep Midnight Navy #060D1E replacing pure black
     onBackground = PureWhite,
-    surface = Color(0xFF0B1733), // Dark Navy Card #0B1733
+    surface = MidnightCardSurface, // Distinct lighter Navy Card #0F1E3D
     onSurface = PureWhite,
-    surfaceVariant = Color(0xFF102244),
+    surfaceVariant = MidnightCardElevated,
     onSurfaceVariant = Color(0xFF94A3B8), // Soft Grey
-    outline = Color(0xFF1E3A8A), // Subtle Blue Border
-    outlineVariant = Color(0xFF152A55)
+    outline = MidnightCardBorder, // Subtle Blue/Navy Border
+    outlineVariant = Color(0xFF162A50)
 )
 
 // Backwards compatibility alias

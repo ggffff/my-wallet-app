@@ -204,7 +204,7 @@ fun AuthScreen(
         modifier = Modifier
             .fillMaxSize()
             .testTag("auth_screen"),
-        color = if (isDark) Color(0xFF030718) else Color(0xFFF8FAFC)
+        color = if (isDark) Color(0xFF060D1E) else Color(0xFFF8FAFC)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // =========================================================================
@@ -217,10 +217,10 @@ fun AuthScreen(
                 // Base Background Gradient
                 val baseGradient = if (isDark) {
                     Brush.verticalGradient(
-                        0.0f to Color(0xFF020617),
-                        0.35f to Color(0xFF050E28),
-                        0.70f to Color(0xFF03081C),
-                        1.0f to Color(0xFF010410)
+                        0.0f to Color(0xFF060D1E),
+                        0.35f to Color(0xFF09142E),
+                        0.70f to Color(0xFF0D183B),
+                        1.0f to Color(0xFF070E22)
                     )
                 } else {
                     Brush.verticalGradient(

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Event
@@ -758,8 +760,7 @@ private fun AddDebtDialog(
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
+            usePlatformDefaultWidth = false
         )
     ) {
         val activeTheme = LocalAppTheme.current
@@ -788,7 +789,6 @@ private fun AddDebtDialog(
             if (!isSubmitting) onDismiss()
         }
 
-        val screenBg = if (isDark) Color(0xFF060D1E) else Color(0xFFF6F9FF)
         val cardBg = if (isDark) Color(0xFF0B1736) else Color.White
         val cardBorder = if (isDark) Color(0xFF1E3A8A) else Color(0xFFE2E8F0)
         val textPrimary = if (isDark) Color.White else Color(0xFF080F20)
@@ -798,129 +798,50 @@ private fun AddDebtDialog(
         val activeAccent = if (debtType == DebtType.LENT) IncomeGreen else ExpenseRed
         val badgeBg = if (isDark) Color(0xFF132854) else Color(0xFFEBF4FF)
 
-        Box(
+        Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .background(screenBg)
-                .testTag("add_debt_screen")
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 20.dp)
+                .heightIn(max = 640.dp)
+                .shadow(
+                    elevation = if (isDark) 12.dp else 8.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.12f)
+                )
+                .testTag("add_debt_dialog"),
+            shape = RoundedCornerShape(28.dp),
+            color = cardBg,
+            border = BorderStroke(1.2.dp, cardBorder)
         ) {
-            // 1. TOP CURVED GRADIENT
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(240.dp)
-                    .align(Alignment.TopCenter)
-            ) {
-                val w = size.width
-                val h = size.height
-
-                val topGradient = if (isDark) {
-                    Brush.verticalGradient(
-                        listOf(Color(0xFF0038A8).copy(alpha = 0.35f), Color.Transparent)
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        listOf(Color(0xFF0072FF).copy(alpha = 0.22f), Color(0xFFBAE6FD).copy(alpha = 0.12f), Color.Transparent)
-                    )
-                }
-                drawRect(brush = topGradient)
-
-                val wavePath = Path().apply {
-                    moveTo(0f, 0f)
-                    lineTo(w, 0f)
-                    lineTo(w, h * 0.50f)
-                    cubicTo(w * 0.75f, h * 0.85f, w * 0.25f, h * 0.25f, 0f, h * 0.65f)
-                    close()
-                }
-                drawPath(
-                    path = wavePath,
-                    brush = Brush.linearGradient(
-                        colors = if (isDark) listOf(Color(0xFF0052FE).copy(alpha = 0.25f), Color.Transparent)
-                        else listOf(Color(0xFF0066FF).copy(alpha = 0.20f), Color.Transparent)
-                    )
-                )
-            }
-
-            // 2. BOTTOM SKYLINE & BASE WAVE
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(130.dp)
-                    .align(Alignment.BottomCenter)
-            ) {
-                val w = size.width
-                val h = size.height
-
-                val skylineColor = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.25f) else Color(0xFF93C5FD).copy(alpha = 0.30f)
-                val baseH = h * 0.65f
-
-                val bWidth = w / 14f
-                val heights = listOf(0.35f, 0.55f, 0.40f, 0.70f, 0.50f, 0.80f, 0.45f, 0.60f, 0.75f, 0.40f, 0.65f, 0.50f, 0.70f, 0.45f)
-                heights.forEachIndexed { i, factor ->
-                    val x = i * bWidth
-                    val bH = h * 0.45f * factor
-                    drawRect(
-                        color = skylineColor,
-                        topLeft = Offset(x, baseH - bH),
-                        size = androidx.compose.ui.geometry.Size(bWidth - 2.dp.toPx(), bH + h * 0.4f)
-                    )
-                }
-
-                val bottomWave = Path().apply {
-                    moveTo(0f, h)
-                    lineTo(w, h)
-                    lineTo(w, h * 0.45f)
-                    cubicTo(w * 0.70f, h * 0.30f, w * 0.30f, h * 0.60f, 0f, h * 0.40f)
-                    close()
-                }
-                drawPath(
-                    path = bottomWave,
-                    brush = Brush.verticalGradient(
-                        colors = if (isDark) listOf(Color(0xFF0052FE).copy(alpha = 0.35f), Color(0xFF002277).copy(alpha = 0.80f))
-                        else listOf(Color(0xFF38BDF8).copy(alpha = 0.40f), Color(0xFF0072FF).copy(alpha = 0.85f))
-                    )
-                )
-            }
-
-            // 3. MAIN CONTENT
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+                    .fillMaxWidth()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(20.dp)
             ) {
-                // Top Bar
+                // Top Header: Title + 3D Wallet Logo Badge + Close (X) button
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        onClick = onDismiss,
-                        shape = CircleShape,
-                        color = cardBg,
-                        border = BorderStroke(1.dp, cardBorder),
-                        shadowElevation = if (isDark) 0.dp else 3.dp,
-                        modifier = Modifier.size(46.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = textPrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Add Debt Record",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp,
+                                letterSpacing = 0.2.sp
+                            ),
+                            color = textPrimary,
+                            modifier = Modifier.testTag("add_debt_title")
+                        )
                     }
 
                     // 3D Wallet illustration with handshake badge
                     Box(
                         modifier = Modifier
-                            .size(115.dp)
+                            .size(72.dp)
                             .padding(end = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -928,7 +849,7 @@ private fun AddDebtDialog(
                             painter = painterResource(id = R.drawable.img_wallet_3d_logo),
                             contentDescription = "Debt Illustration",
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(105.dp)
+                            modifier = Modifier.size(66.dp)
                         )
 
                         Surface(
@@ -937,7 +858,7 @@ private fun AddDebtDialog(
                             shadowElevation = 4.dp,
                             border = BorderStroke(1.5.dp, Color(0xFFE2E8F0)),
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(24.dp)
                                 .align(Alignment.BottomEnd)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -945,27 +866,29 @@ private fun AddDebtDialog(
                                     imageVector = Icons.Default.Handshake,
                                     contentDescription = "Handshake Badge",
                                     tint = activeAccent,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         }
                     }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = "Add Debt Record",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 30.sp,
-                        letterSpacing = 0.2.sp
-                    ),
-                    color = textPrimary,
-                    modifier = Modifier.testTag("add_debt_title")
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // 2 CATEGORY CARDS: আমি পাবো (Lent) vs দিতে হবে (Borrowed)
                 Row(
