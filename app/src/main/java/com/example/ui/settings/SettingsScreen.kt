@@ -56,7 +56,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.Surface
+import com.example.ui.auth.PhoneAuthDialogMode
+import com.example.ui.auth.PhoneOtpAuthDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -119,7 +124,8 @@ fun SettingsScreen(
     onOpenGoals: () -> Unit = {},
     onOpenBills: () -> Unit = {},
     onOpenDebts: () -> Unit = {},
-    onOpenHabits: () -> Unit = {}
+    onOpenHabits: () -> Unit = {},
+    onLinkPhoneNumber: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -135,6 +141,11 @@ fun SettingsScreen(
 
     var showCountryDialog by remember { mutableStateOf(false) }
     var showCurrencyDialog by remember { mutableStateOf(false) }
+    var showPhoneLinkDialog by remember { mutableStateOf(false) }
+
+    var linkedPhoneState by remember(userProfile) {
+        mutableStateOf(userProfile?.phoneNumber?.ifBlank { Firebase.auth.currentUser?.phoneNumber.orEmpty() } ?: Firebase.auth.currentUser?.phoneNumber.orEmpty())
+    }
 
     // Universal Android Photo Picker & Gallery/Files Picker for Phone Uploads
     val saveImageFromUri: (Uri) -> Unit = { uri ->
@@ -442,6 +453,92 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Verified Mobile Number & Account Recovery Row
+                val isPhoneVerified = (userProfile?.isPhoneVerified == true) || linkedPhoneState.isNotBlank()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Phone,
+                            contentDescription = null,
+                            tint = if (isPhoneVerified) IncomeGreen else activeTheme.primaryColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                text = if (isPhoneVerified) {
+                                    "Mobile: $linkedPhoneState (Verified)"
+                                } else {
+                                    "Mobile: " + appString(StringKeys.NOT_LINKED)
+                                },
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = if (isPhoneVerified) FontWeight.SemiBold else FontWeight.Normal
+                                ),
+                                color = if (isPhoneVerified) IncomeGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = appString(StringKeys.RECOVERY_PHONE_DESC),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    if (!isPhoneVerified) {
+                        Surface(
+                            onClick = { showPhoneLinkDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = activeTheme.primaryColor.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, activeTheme.primaryColor),
+                            modifier = Modifier.testTag("link_phone_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Link,
+                                    contentDescription = null,
+                                    tint = activeTheme.primaryColor,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = appString(StringKeys.LINK_PHONE),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = activeTheme.primaryColor
+                                )
+                            }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Verified",
+                                tint = IncomeGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Recovery Ready",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = IncomeGreen
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -1008,6 +1105,18 @@ fun SettingsScreen(
             onSelectCurrency = { selected ->
                 onSelectCurrency(selected)
                 showCurrencyDialog = false
+            }
+        )
+    }
+
+    if (showPhoneLinkDialog) {
+        PhoneOtpAuthDialog(
+            mode = PhoneAuthDialogMode.LINK_ACCOUNT,
+            onDismiss = { showPhoneLinkDialog = false },
+            onSuccess = { verifiedPhone ->
+                showPhoneLinkDialog = false
+                linkedPhoneState = verifiedPhone
+                onLinkPhoneNumber(verifiedPhone)
             }
         )
     }

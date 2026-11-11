@@ -132,8 +132,31 @@ class WalletRepository(private val db: FirebaseFirestore) {
                 "currency" to profile.currency,
                 "language" to profile.language,
                 "themeMode" to profile.themeMode,
+                "phoneNumber" to (profile.phoneNumber.ifBlank { auth.currentUser?.phoneNumber ?: "" }),
+                "isPhoneVerified" to (profile.isPhoneVerified || !auth.currentUser?.phoneNumber.isNullOrBlank()),
                 "email" to (auth.currentUser?.email ?: profile.email),
                 "photoUrl" to if (profile.photoUrl.isNotBlank()) profile.photoUrl else (auth.currentUser?.photoUrl?.toString() ?: ""),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            docRef.set(payload, SetOptions.merge()).await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, docRef.path)
+            throw e
+        }
+    }
+
+    suspend fun linkPhoneNumberToCurrentUser(phoneNumber: String) {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            val current = guestProfile.value ?: UserProfile()
+            guestProfile.value = current.copy(phoneNumber = phoneNumber, isPhoneVerified = true)
+            return
+        }
+        val docRef = db.collection("users").document(uid)
+        try {
+            val payload = hashMapOf<String, Any>(
+                "phoneNumber" to phoneNumber,
+                "isPhoneVerified" to true,
                 "updatedAt" to FieldValue.serverTimestamp()
             )
             docRef.set(payload, SetOptions.merge()).await()

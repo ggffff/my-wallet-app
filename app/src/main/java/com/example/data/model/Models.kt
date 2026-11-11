@@ -27,6 +27,8 @@ data class UserProfile(
     @DocumentId val id: String = "",
     val displayName: String = "",
     val email: String = "",
+    val phoneNumber: String = "",
+    val isPhoneVerified: Boolean = false,
     val photoUrl: String = "",
     val currency: String = "BDT",
     val language: String = "en",

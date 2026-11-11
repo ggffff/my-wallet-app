@@ -194,6 +194,18 @@ object StringKeys {
     const val OR = "or"
     const val SIGNING_IN = "signing_in"
     const val SIGN_IN_WITH_GOOGLE = "sign_in_with_google"
+    const val SIGN_IN_WITH_PHONE = "sign_in_with_phone"
+    const val PHONE_NUMBER = "phone_number"
+    const val ENTER_PHONE = "enter_phone"
+    const val SEND_OTP = "send_otp"
+    const val ENTER_OTP = "enter_otp"
+    const val VERIFY_OTP = "verify_otp"
+    const val RESEND_OTP = "resend_otp"
+    const val LINK_PHONE = "link_phone"
+    const val PHONE_LINKED = "phone_linked"
+    const val NOT_LINKED = "not_linked"
+    const val ACCOUNT_RECOVERY = "account_recovery"
+    const val RECOVERY_PHONE_DESC = "recovery_phone_desc"
     const val CONTINUE_GUEST = "continue_guest"
     const val SIGN_OUT = "sign_out"
     const val THEME_DARK = "theme_dark"
@@ -316,6 +328,18 @@ private val enStrings = mapOf(
     StringKeys.OR to "OR",
     StringKeys.SIGNING_IN to "Signing in...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "Sign in with Google",
+    StringKeys.SIGN_IN_WITH_PHONE to "Sign in with Mobile",
+    StringKeys.PHONE_NUMBER to "Mobile Number",
+    StringKeys.ENTER_PHONE to "Enter your mobile number",
+    StringKeys.SEND_OTP to "Send SMS OTP",
+    StringKeys.ENTER_OTP to "Enter 6-digit OTP",
+    StringKeys.VERIFY_OTP to "Verify & Continue",
+    StringKeys.RESEND_OTP to "Resend Code",
+    StringKeys.LINK_PHONE to "Link Mobile Number",
+    StringKeys.PHONE_LINKED to "Verified & Linked",
+    StringKeys.NOT_LINKED to "Not Linked",
+    StringKeys.ACCOUNT_RECOVERY to "Account Recovery",
+    StringKeys.RECOVERY_PHONE_DESC to "Link your phone number for SMS OTP login and instant account recovery.",
     StringKeys.CONTINUE_GUEST to "Continue as Guest",
     StringKeys.SIGN_OUT to "Sign Out",
     StringKeys.THEME_DARK to "Dark Mode",
@@ -436,6 +460,18 @@ private val bnStrings = mapOf(
     StringKeys.OR to "অথবা",
     StringKeys.SIGNING_IN to "লগইন হচ্ছে...",
     StringKeys.SIGN_IN_WITH_GOOGLE to "গুগল দিয়ে সাইন ইন",
+    StringKeys.SIGN_IN_WITH_PHONE to "মোবাইল নম্বর দিয়ে লগইন",
+    StringKeys.PHONE_NUMBER to "মোবাইল নম্বর",
+    StringKeys.ENTER_PHONE to "আপনার মোবাইল নম্বর লিখুন",
+    StringKeys.SEND_OTP to "ওটিপি পাঠান",
+    StringKeys.ENTER_OTP to "৬ ডিজিটের ওটিপি লিখুন",
+    StringKeys.VERIFY_OTP to "যাচাই করে এগিয়ে যান",
+    StringKeys.RESEND_OTP to "পুনরায় পাঠান",
+    StringKeys.LINK_PHONE to "মোবাইল নম্বর লিঙ্ক করুন",
+    StringKeys.PHONE_LINKED to "ভেরিফাইড ও লিঙ্কযুক্ত",
+    StringKeys.NOT_LINKED to "লিঙ্ক করা নেই",
+    StringKeys.ACCOUNT_RECOVERY to "অ্যাকাউন্ট পুনরুদ্ধার",
+    StringKeys.RECOVERY_PHONE_DESC to "সহজ লগইন ও অ্যাকাউন্ট পুনরুদ্ধারের জন্য মোবাইল নম্বর যুক্ত রাখুন।",
     StringKeys.CONTINUE_GUEST to "গেস্ট হিসেবে চালিয়ে যান",
     StringKeys.SIGN_OUT to "সাইন আউট",
     StringKeys.THEME_DARK to "ডার্ক মোড",

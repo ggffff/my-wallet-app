@@ -43,6 +43,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -163,6 +164,7 @@ fun AuthScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorDialogMessage by remember { mutableStateOf<String?>(null) }
     var showCountryDialog by remember { mutableStateOf(false) }
+    var showPhoneAuthDialog by remember { mutableStateOf(false) }
 
     val isDark = LocalAppTheme.current.isDark
     val scrollState = rememberScrollState()
@@ -686,6 +688,55 @@ fun AuthScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 2. Sign in with Mobile Number Button (SMS OTP Login & Account Recovery)
+                    Surface(
+                        onClick = { showPhoneAuthDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("phone_sign_in_button"),
+                        shape = RoundedCornerShape(28.dp),
+                        color = if (isDark) Color(0xFF0F1E40) else Color.White,
+                        border = BorderStroke(1.2.dp, if (isDark) Color(0xFF1E3A8A) else Color(0xFFCBD5E1)),
+                        shadowElevation = if (isDark) 0.dp else 2.dp,
+                        enabled = !isLoading
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 22.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isDark) Color(0xFF152A55) else Color(0xFFDBEAFE)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Phone,
+                                    contentDescription = null,
+                                    tint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0066FF),
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = appString(StringKeys.SIGN_IN_WITH_PHONE),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 16.sp,
+                                    color = if (isDark) Color.White else Color(0xFF0F172A),
+                                    letterSpacing = 0.2.sp
+                                )
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(18.dp))
 
                     // 2. OR Divider
@@ -816,6 +867,18 @@ fun AuthScreen(
                 onSelectLanguage = { newLang ->
                     onToggleLanguage(newLang)
                     showCountryDialog = false
+                }
+            )
+        }
+
+        if (showPhoneAuthDialog) {
+            PhoneOtpAuthDialog(
+                mode = PhoneAuthDialogMode.SIGN_IN,
+                onDismiss = { showPhoneAuthDialog = false },
+                onSuccess = { verifiedPhone ->
+                    showPhoneAuthDialog = false
+                    Log.d("AuthScreen", "Phone login succeeded for: $verifiedPhone")
+                    onAuthSuccess()
                 }
             )
         }

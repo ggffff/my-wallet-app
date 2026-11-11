@@ -21,6 +21,8 @@ service cloud.firestore {
              data.language is string && data.language.size() >= 2 && data.language.size() <= 10 &&
              data.themeMode is string && data.themeMode.size() >= 2 && data.themeMode.size() <= 20 &&
              (!('email' in data) || data.email is string) &&
+             (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             (!('isPhoneVerified' in data) || data.isPhoneVerified is bool) &&
              (!('photoUrl' in data) || data.photoUrl is string) &&
              (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
              (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));

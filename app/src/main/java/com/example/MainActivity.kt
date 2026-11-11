@@ -637,7 +637,17 @@ fun MainWalletApp(
                         onOpenGoals = { currentScreen = Screen.GOALS },
                         onOpenBills = { currentScreen = Screen.BILLS },
                         onOpenDebts = { currentScreen = Screen.DEBTS },
-                        onOpenHabits = { currentScreen = Screen.HABITS }
+                        onOpenHabits = { currentScreen = Screen.HABITS },
+                        onLinkPhoneNumber = { phone ->
+                            coroutineScope.launch {
+                                try {
+                                    repository.linkPhoneNumberToCurrentUser(phone)
+                                    snackbarHostState.showSnackbar("Mobile number $phone verified & linked successfully!")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("Failed to link phone: ${e.message}")
+                                }
+                            }
+                        }
                     )
                     Screen.TRANSACTIONS -> StatementsScreen(
                         transactions = transactions,
