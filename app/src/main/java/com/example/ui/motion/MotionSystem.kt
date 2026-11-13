@@ -60,39 +60,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Interactive Bounce Click Modifier.
- * Provides micro-scale compression on press (0.95f) and elastic spring recovery on release.
+ * Lightweight Click Modifier without Modifier.composed sub-composition overhead.
+ * Keeps LazyColumn/LazyRow scrolling smooth at 60/120 FPS.
  */
 fun Modifier.bounceClick(
     scaleDown: Float = 0.95f,
     onClick: (() -> Unit)? = null
-): Modifier = composed {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "bounceScale"
-    )
-
-    val base = this.graphicsLayer {
-        scaleX = scale
-        scaleY = scale
-    }
-
-    if (onClick != null) {
-        base.clickable(
-            interactionSource = interactionSource,
-            indication = null,
-            onClick = onClick
-        )
-    } else {
-        base
-    }
+): Modifier = if (onClick != null) {
+    this.clickable(onClick = onClick)
+} else {
+    this
 }
 
 /**
@@ -153,9 +130,8 @@ fun Modifier.staggeredEntrance(
 ): Modifier = this
 
 /**
- * Animated BDT Number Counter.
- * Ticks up numbers smoothly from 0 or last value using FastOutSlowInEasing,
- * with crossfade between masked and unmasked states.
+ * Formatted Balance Text Counter.
+ * Avoids heavy per-card AnimatedContent sub-layouts inside scrolling lists/rows.
  */
 @Composable
 fun AnimatedBdtCounter(
@@ -167,27 +143,14 @@ fun AnimatedBdtCounter(
     isMasked: Boolean = false,
     durationMs: Int = 850
 ) {
-    AnimatedContent(
-        targetState = isMasked,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
-        },
-        label = "maskedBalanceTransition"
-    ) { masked ->
-        if (masked) {
-            Text(
-                text = "${currency.symbol} ••••••••",
-                style = style,
-                color = color
-            )
-        } else {
-            Text(
-                text = currency.format(targetAmount),
-                style = style,
-                color = color
-            )
-        }
+    val displayText = remember(targetAmount, isMasked, currency) {
+        if (isMasked) "${currency.symbol} ••••••••" else currency.format(targetAmount)
     }
+    Text(
+        text = displayText,
+        style = style,
+        color = color
+    )
 }
 
 /**

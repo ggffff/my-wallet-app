@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Account
 import com.example.data.model.HabitRoutine
+import com.example.ui.dialogs.CalendarDateSelectorCard
+import com.example.ui.dialogs.WalletCalendarDatePickerDialog
 import com.example.ui.motion.bounceClick
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
@@ -448,11 +450,6 @@ private fun HabitCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = if (isDark) 4.dp else 1.dp,
-                shape = RoundedCornerShape(20.dp),
-                spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.04f)
-            )
             .border(
                 1.dp,
                 if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
@@ -669,6 +666,7 @@ private fun AddHabitDialog(
     var title by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Routine") }
     var lastDoneDate by remember { mutableStateOf(todayStr) }
+    var showLastDoneDatePicker by remember { mutableStateOf(false) }
     var intervalDays by remember { mutableStateOf(30) }
     var intervalLabel by remember { mutableStateOf("1 Month (30 days)") }
     var estimatedCostText by remember { mutableStateOf("") }
@@ -761,12 +759,10 @@ private fun AddHabitDialog(
                     }
                 }
 
-                OutlinedTextField(
-                    value = lastDoneDate,
-                    onValueChange = { lastDoneDate = it },
-                    label = { Text("আগের বার করার তারিখ (YYYY-MM-DD)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                CalendarDateSelectorCard(
+                    label = "আগের বার করার তারিখ",
+                    selectedDate = lastDoneDate,
+                    onClick = { showLastDoneDatePicker = true }
                 )
 
                 // Calculated Next Due Date preview
@@ -842,6 +838,14 @@ private fun AddHabitDialog(
             }
         }
     )
+
+    if (showLastDoneDatePicker) {
+        WalletCalendarDatePickerDialog(
+            selectedDateStr = lastDoneDate,
+            onDateSelected = { pickedDate -> lastDoneDate = pickedDate },
+            onDismiss = { showLastDoneDatePicker = false }
+        )
+    }
 }
 
 @Composable
@@ -853,6 +857,7 @@ private fun MarkHabitDoneDialog(
 ) {
     val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
     var completionDate by remember { mutableStateOf(todayStr) }
+    var showCompletionDatePicker by remember { mutableStateOf(false) }
     var deductFromAccount by remember { mutableStateOf(accounts.isNotEmpty() && habit.estimatedCost > 0) }
     var selectedAccountId by remember { mutableStateOf<String?>(accounts.firstOrNull()?.id) }
 
@@ -875,12 +880,10 @@ private fun MarkHabitDoneDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                OutlinedTextField(
-                    value = completionDate,
-                    onValueChange = { completionDate = it },
-                    label = { Text("সম্পন্নের তারিখ") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                CalendarDateSelectorCard(
+                    label = "সম্পন্নের তারিখ",
+                    selectedDate = completionDate,
+                    onClick = { showCompletionDatePicker = true }
                 )
 
                 Box(
@@ -954,6 +957,14 @@ private fun MarkHabitDoneDialog(
             }
         }
     )
+
+    if (showCompletionDatePicker) {
+        WalletCalendarDatePickerDialog(
+            selectedDateStr = completionDate,
+            onDateSelected = { pickedDate -> completionDate = pickedDate },
+            onDismiss = { showCompletionDatePicker = false }
+        )
+    }
 }
 
 private fun getCategoryIcon(category: String, title: String): ImageVector {

@@ -175,6 +175,13 @@ class MainActivity : ComponentActivity() {
             Log.w("MainActivity", "enableEdgeToEdge error", t)
         }
 
+        // Initialize AdMob User Messaging Platform (UMP) consent
+        try {
+            com.example.ui.ads.AdMobConsentManager.requestConsentIfRequired(this)
+        } catch (t: Throwable) {
+            Log.w("MainActivity", "AdMob consent request error", t)
+        }
+
         setContent {
             val systemDark = isSystemInDarkTheme()
             val context = LocalContext.current

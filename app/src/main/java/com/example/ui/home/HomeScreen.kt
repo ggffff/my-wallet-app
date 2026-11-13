@@ -8,7 +8,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,14 +57,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -97,6 +100,9 @@ import com.example.util.StringKeys
 import com.example.util.appString
 import com.example.util.formatBdt
 import com.example.util.formatCurrency
+import com.example.ui.ads.AdMobBanner
+import com.example.ui.ads.AdMobNativeAdCard
+import com.example.ui.ads.rememberHomeNativeAd
 
 @Composable
 fun HomeScreen(
@@ -125,6 +131,7 @@ fun HomeScreen(
     var isBalanceHidden by remember { mutableStateOf(false) }
     var accountToUpdate by remember { mutableStateOf<Account?>(null) }
     var showCurrencyDialog by remember { mutableStateOf(false) }
+    val homeNativeAd = rememberHomeNativeAd()
 
     val netBalance = remember(accounts) {
         accounts.sumOf { it.balance }
@@ -148,26 +155,28 @@ fun HomeScreen(
         label = "eyeRotation"
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-            .testTag("home_screen"),
-        contentPadding = PaddingValues(bottom = 90.dp)
-    ) {
-        // 1. Top Header: My Wallet title, Greeting, Sun/Moon, Notification and Settings Icons
-        item {
-            TimeBasedGreetingHeader(
-                userProfile = userProfile,
-                unreadNotificationsCount = upcomingBills.size,
-                onOpenNotifications = onViewBillsClicked,
-                onOpenSettings = onOpenSettings
-            )
-        }
+    Column(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .background(Color.Transparent)
+                .testTag("home_screen"),
+            contentPadding = PaddingValues(bottom = 12.dp)
+        ) {
+            // 1. Top Header: My Wallet title, Greeting, Sun/Moon, Notification and Settings Icons
+            item(key = "home_header") {
+                TimeBasedGreetingHeader(
+                    userProfile = userProfile,
+                    unreadNotificationsCount = upcomingBills.size,
+                    onOpenNotifications = onViewBillsClicked,
+                    onOpenSettings = onOpenSettings
+                )
+            }
 
-        // 2. Large Net Balance Hero Card (Clean Modern Card strictly matching reference design)
-        item {
-            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+            // 2. Large Net Balance Hero Card (Clean Modern Card strictly matching reference design)
+            item(key = "home_balance_hero") {
+                val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
 
             Card(
                 modifier = Modifier
@@ -208,21 +217,17 @@ fun HomeScreen(
                             color = if (isDark) Color(0xFF00D2FF).copy(alpha = 0.55f) else Color(0xFFBFDBFE),
                             shape = RoundedCornerShape(26.dp)
                         )
-                ) {
-                    // Flowing Background Wave Curve
-                    androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-                        val w = size.width
-                        val h = size.height
-                        val wavePath = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(0f, h * 0.70f)
-                            cubicTo(w * 0.35f, h * 0.54f, w * 0.65f, h * 0.88f, w, h * 0.64f)
-                            lineTo(w, h)
-                            lineTo(0f, h)
-                            close()
-                        }
-                        drawPath(
-                            path = wavePath,
-                            brush = Brush.linearGradient(
+                        .drawWithCache {
+                            val w = size.width
+                            val h = size.height
+                            val wavePath = Path().apply {
+                                moveTo(0f, h * 0.70f)
+                                cubicTo(w * 0.35f, h * 0.54f, w * 0.65f, h * 0.88f, w, h * 0.64f)
+                                lineTo(w, h)
+                                lineTo(0f, h)
+                                close()
+                            }
+                            val waveBrush = Brush.linearGradient(
                                 colors = if (isDark) listOf(
                                     Color(0xFF0070F3).copy(alpha = 0.30f),
                                     Color(0xFF00E5FF).copy(alpha = 0.15f),
@@ -233,8 +238,11 @@ fun HomeScreen(
                                     Color.Transparent
                                 )
                             )
-                        )
-                    }
+                            onDrawBehind {
+                                drawPath(path = wavePath, brush = waveBrush)
+                            }
+                        }
+                ) {
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         // Top Row: Net Balance Title | Eye Toggle ... BDT (৳) ▾ Pill
@@ -460,7 +468,7 @@ fun HomeScreen(
         // 3. Saving Goals (Target with Coins - NO PIGGY BANK)
         // 4. Bills & Dues (Calendar and Clock)
         // 5. AI Tips (AI Lightbulb)
-        item {
+        item(key = "home_quick_actions") {
             val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             Row(
                 modifier = Modifier
@@ -517,7 +525,7 @@ fun HomeScreen(
         }
 
         // 4. Upcoming Bill Card (Exact reference design)
-        item {
+        item(key = "home_upcoming_bill") {
             val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             val nextBill = upcomingBills.firstOrNull() ?: bills.firstOrNull { !it.isPaid }
             val billTitle = nextBill?.title ?: "Wifi Bill"
@@ -528,11 +536,6 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp)
-                    .shadow(
-                        elevation = if (isDark) 4.dp else 2.dp,
-                        shape = RoundedCornerShape(22.dp),
-                        spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f)
-                    )
                     .border(
                         width = 1.dp,
                         color = if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
@@ -544,23 +547,25 @@ fun HomeScreen(
                     containerColor = if (isDark) Color(0xFF0B1733) else Color(0xFFFFFFFF)
                 )
             ) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    // Subtle background wave accent
-                    androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-                        val w = size.width
-                        val h = size.height
-                        val wavePath = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(0f, h * 0.75f)
-                            cubicTo(w * 0.4f, h * 0.6f, w * 0.7f, h * 0.95f, w, h * 0.7f)
-                            lineTo(w, h)
-                            lineTo(0f, h)
-                            close()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawWithCache {
+                            val w = size.width
+                            val h = size.height
+                            val wavePath = Path().apply {
+                                moveTo(0f, h * 0.75f)
+                                cubicTo(w * 0.4f, h * 0.6f, w * 0.7f, h * 0.95f, w, h * 0.7f)
+                                lineTo(w, h)
+                                lineTo(0f, h)
+                                close()
+                            }
+                            val waveColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.12f) else Color(0xFFBAE6FD).copy(alpha = 0.35f)
+                            onDrawBehind {
+                                drawPath(path = wavePath, color = waveColor)
+                            }
                         }
-                        drawPath(
-                            path = wavePath,
-                            color = if (isDark) Color(0xFF0070F3).copy(alpha = 0.12f) else Color(0xFFBAE6FD).copy(alpha = 0.35f)
-                        )
-                    }
+                ) {
 
                     Row(
                         modifier = Modifier
@@ -654,7 +659,7 @@ fun HomeScreen(
         }
 
         // 4.5. Quick Utilities: Debts & Habits
-        item {
+        item(key = "home_debts_habits") {
             val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             val activeDebts = debts.filter { !it.isSettled }
             val lentSum = activeDebts.filter { it.type == "LENT" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
@@ -672,11 +677,6 @@ fun HomeScreen(
                 Card(
                     modifier = Modifier
                         .weight(1f)
-                        .shadow(
-                            elevation = if (isDark) 4.dp else 1.dp,
-                            shape = RoundedCornerShape(20.dp),
-                            spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.04f)
-                        )
                         .border(
                             1.dp,
                             if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
@@ -744,11 +744,6 @@ fun HomeScreen(
                 Card(
                     modifier = Modifier
                         .weight(1f)
-                        .shadow(
-                            elevation = if (isDark) 4.dp else 1.dp,
-                            shape = RoundedCornerShape(20.dp),
-                            spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.04f)
-                        )
                         .border(
                             1.dp,
                             if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
@@ -815,7 +810,7 @@ fun HomeScreen(
         }
 
         // 5. Accounts Section (Exact reference design)
-        item {
+        item(key = "home_accounts_header") {
             val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
 
             Row(
@@ -863,12 +858,12 @@ fun HomeScreen(
             }
         }
 
-        item {
+        item(key = "home_accounts_carousel") {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                items(accounts) { account ->
+                items(accounts, key = { it.id }) { account ->
                     HomeAccountCard(
                         account = account,
                         isHidden = isBalanceHidden,
@@ -877,14 +872,14 @@ fun HomeScreen(
                     )
                 }
 
-                item {
+                item(key = "home_add_account_card") {
                     HomeAddAccountCard(onClick = onAddAccountClicked)
                 }
             }
         }
 
         // 6. Recent Transactions Section
-        item {
+        item(key = "home_recent_txns_header") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -907,7 +902,7 @@ fun HomeScreen(
         }
 
         if (transactions.isEmpty()) {
-            item {
+            item(key = "home_empty_txns") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -951,15 +946,38 @@ fun HomeScreen(
                 }
             }
         } else {
-            itemsIndexed(transactions.take(6)) { index, txn ->
-                HomeTransactionRow(
-                    txn = txn,
-                    isHidden = isBalanceHidden,
-                    language = language,
-                    modifier = Modifier.staggeredEntrance(index = 6 + index)
-                )
+            val recentTransactions = transactions.take(6)
+            val nativeAdInsertIndex = when {
+                recentTransactions.size >= 3 -> 1 // Naturally between 2nd and 3rd transaction item
+                else -> 0 // Between 1st & 2nd item (size == 2) or below 1st item (size == 1)
+            }
+            recentTransactions.forEachIndexed { index, txn ->
+                item(key = "home_txn_${index}_${txn.id}") {
+                    HomeTransactionRow(
+                        txn = txn,
+                        isHidden = isBalanceHidden,
+                        language = language,
+                        modifier = Modifier.staggeredEntrance(index = 6 + index)
+                    )
+                }
+                if (index == nativeAdInsertIndex && homeNativeAd != null) {
+                    item(key = "home_native_ad") {
+                        AdMobNativeAdCard(
+                            nativeAd = homeNativeAd,
+                            modifier = Modifier.staggeredEntrance(index = 7 + index)
+                        )
+                    }
+                }
             }
         }
+        }
+
+        // 7. Google AdMob Anchored Adaptive Banner Ad (Pinned outside LazyColumn to prevent scroll WebView thrashing)
+        AdMobBanner(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 6.dp)
+        )
     }
 
     // Direct Update Account / Balance Dialog from Home
@@ -1123,6 +1141,14 @@ fun QuickAction3DItem(
     onClick: () -> Unit
 ) {
     val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+    val context = LocalContext.current
+    val imageRequest = remember(drawableRes, context) {
+        ImageRequest.Builder(context)
+            .data(drawableRes)
+            .size(180)
+            .crossfade(false)
+            .build()
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1153,19 +1179,14 @@ fun QuickAction3DItem(
             )
 
             // 3D Icon container:
-            // - In Dark mode: Pure black background (#000000) seamlessly blending with the home background
-            // - In Lite mode: Clean elevated white card (#FFFFFF) with subtle shadow and border
+            // - In Dark mode: Deep midnight card seamlessly blending with the home background
+            // - In Lite mode: Clean elevated white card (#FFFFFF) with subtle border
             Box(
                 modifier = Modifier
                     .size(58.dp)
                     .then(
                         if (isDark) {
                             Modifier
-                                .shadow(
-                                    elevation = 3.dp,
-                                    shape = RoundedCornerShape(18.dp),
-                                    spotColor = Color(0xFF0052FE).copy(alpha = 0.25f)
-                                )
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(Color(0xFF0D1B38))
                                 .border(
@@ -1175,11 +1196,6 @@ fun QuickAction3DItem(
                                 )
                         } else {
                             Modifier
-                                .shadow(
-                                    elevation = 3.dp,
-                                    shape = RoundedCornerShape(18.dp),
-                                    spotColor = Color.Black.copy(alpha = 0.08f)
-                                )
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(Color.White)
                                 .border(
@@ -1191,8 +1207,8 @@ fun QuickAction3DItem(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = drawableRes),
+                AsyncImage(
+                    model = imageRequest,
                     contentDescription = label,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -1240,11 +1256,6 @@ fun HomeAccountCard(
         modifier = Modifier
             .width(165.dp)
             .height(115.dp)
-            .shadow(
-                elevation = if (isDark) 3.dp else 1.5.dp,
-                shape = RoundedCornerShape(20.dp),
-                spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f)
-            )
             .border(
                 width = 1.dp,
                 color = if (isDark) Color(0xFF152D5A) else Color(0xFFBFDBFE),
@@ -1256,23 +1267,25 @@ fun HomeAccountCard(
             containerColor = if (isDark) Color(0xFF0A1630) else Color(0xFFF0F7FF)
         )
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Subtle wave accent
-            androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-                val w = size.width
-                val h = size.height
-                val wavePath = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(0f, h * 0.8f)
-                    cubicTo(w * 0.35f, h * 0.65f, w * 0.7f, h * 0.95f, w, h * 0.75f)
-                    lineTo(w, h)
-                    lineTo(0f, h)
-                    close()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawWithCache {
+                    val w = size.width
+                    val h = size.height
+                    val wavePath = Path().apply {
+                        moveTo(0f, h * 0.8f)
+                        cubicTo(w * 0.35f, h * 0.65f, w * 0.7f, h * 0.95f, w, h * 0.75f)
+                        lineTo(w, h)
+                        lineTo(0f, h)
+                        close()
+                    }
+                    val waveColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.10f) else Color(0xFFBAE6FD).copy(alpha = 0.25f)
+                    onDrawBehind {
+                        drawPath(path = wavePath, color = waveColor)
+                    }
                 }
-                drawPath(
-                    path = wavePath,
-                    color = if (isDark) Color(0xFF0070F3).copy(alpha = 0.10f) else Color(0xFFBAE6FD).copy(alpha = 0.25f)
-                )
-            }
+        ) {
 
             Column(
                 modifier = Modifier
@@ -1347,11 +1360,6 @@ fun HomeAddAccountCard(onClick: () -> Unit) {
         modifier = Modifier
             .width(140.dp)
             .height(115.dp)
-            .shadow(
-                elevation = if (isDark) 2.dp else 1.dp,
-                shape = RoundedCornerShape(20.dp),
-                spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.04f)
-            )
             .border(
                 width = 1.dp,
                 color = if (isDark) Color(0xFF152D5A) else Color(0xFFBFDBFE),
@@ -1410,9 +1418,7 @@ fun HomeTransactionRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 5.dp)
-            .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-            .bounceClick(scaleDown = 0.98f) { },
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {

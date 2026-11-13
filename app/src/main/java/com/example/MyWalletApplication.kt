@@ -2,14 +2,37 @@ package com.example
 
 import android.app.Application
 import android.util.Log
+import com.google.android.gms.ads.MobileAds
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MyWalletApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
         initFirebaseSafely()
+        initAdMobSafely()
+    }
+
+    private fun initAdMobSafely() {
+        if (!adMobInitStarted.compareAndSet(false, true)) {
+            Log.d(TAG, "AdMob MobileAds initialization already triggered; skipping duplicate call")
+            return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                MobileAds.initialize(this@MyWalletApplication) { status ->
+                    Log.d(TAG, "AdMob MobileAds initialized successfully: ${status.adapterStatusMap.keys}")
+                }
+            } catch (t: Throwable) {
+                adMobInitStarted.set(false)
+                Log.e(TAG, "AdMob initialization encountered an exception", t)
+            }
+        }
     }
 
     private fun initFirebaseSafely() {
@@ -41,5 +64,6 @@ class MyWalletApplication : Application() {
 
     companion object {
         private const val TAG = "MyWalletApplication"
+        private val adMobInitStarted = AtomicBoolean(false)
     }
 }

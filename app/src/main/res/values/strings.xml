@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">My Wallet</string>
+    <!-- Google AdMob Production Configuration (used in Release builds) -->
+    <string name="admob_app_id">ca-app-pub-6482896166784785~3253113511</string>
+    <string name="admob_real_app_id">ca-app-pub-6482896166784785~3253113511</string>
+    <string name="admob_banner_ad_unit_id">ca-app-pub-6482896166784785/4207102538</string>
+    <string name="admob_native_ad_unit_id">ca-app-pub-6482896166784785/3831377215</string>
+
+    <!-- Official Google Test AdMob IDs (used automatically in Debug builds) -->
+    <string name="admob_test_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_test_banner_ad_unit_id">ca-app-pub-3940256099942544/9214589741</string>
+    <string name="admob_test_native_ad_unit_id">ca-app-pub-3940256099942544/2247696110</string>
 </resources>

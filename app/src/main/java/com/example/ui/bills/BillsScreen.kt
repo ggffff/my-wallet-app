@@ -245,7 +245,6 @@ private fun BillCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(1.dp, RoundedCornerShape(18.dp), spotColor = Color.Black.copy(alpha = 0.04f))
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(18.dp)),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(

@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,8 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
@@ -138,6 +141,7 @@ fun AddTransactionDialog(
         var isAmountFocused by remember { mutableStateOf(false) }
         var isTitleFocused by remember { mutableStateOf(false) }
         var isNoteFocused by remember { mutableStateOf(false) }
+        var showDatePicker by remember { mutableStateOf(false) }
 
         val cardBg = if (isDark) Color(0xFF0B1736) else Color.White
         val cardBorder = if (isDark) Color(0xFF1E3A8A) else Color(0xFFE2E8F0)
@@ -555,6 +559,45 @@ fun AddTransactionDialog(
                         activeAccent = activeAccent,
                         badgeBg = badgeBg
                     )
+
+                    // Field 4: Date (Calendar Picker Only)
+                    CompactInputField(
+                        isFocused = showDatePicker,
+                        icon = {
+                            Icon(Icons.Default.CalendarToday, null, tint = activeAccent, modifier = Modifier.size(20.dp))
+                        },
+                        content = {
+                            Column {
+                                Text(
+                                    text = "Date",
+                                    style = TextStyle(fontSize = 11.sp, color = textSecondary)
+                                )
+                                Text(
+                                    text = transactionDate,
+                                    style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                )
+                            }
+                        },
+                        trailing = {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = "Open Calendar",
+                                tint = activeAccent,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        },
+                        cardBg = cardBg,
+                        cardBorder = cardBorder,
+                        activeAccent = activeAccent,
+                        badgeBg = badgeBg,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .testTag("transaction_date_input")
+                            .clickable {
+                                focusManager.clearFocus()
+                                showDatePicker = true
+                            }
+                    )
                 }
 
                 AnimatedVisibility(
@@ -673,6 +716,14 @@ fun AddTransactionDialog(
                 }
             }
         }
+
+        if (showDatePicker) {
+            WalletCalendarDatePickerDialog(
+                selectedDateStr = transactionDate,
+                onDateSelected = { pickedDate -> transactionDate = pickedDate },
+                onDismiss = { showDatePicker = false }
+            )
+        }
     }
 }
 
@@ -685,14 +736,15 @@ private fun CompactInputField(
     cardBg: Color,
     cardBorder: Color,
     activeAccent: Color,
-    badgeBg: Color
+    badgeBg: Color,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.dp, if (isFocused) activeAccent else cardBorder),
         shadowElevation = if (isFocused) 3.dp else 1.dp,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(60.dp)
     ) {

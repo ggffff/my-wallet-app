@@ -853,7 +853,6 @@ fun AccountDetailListItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 6.dp)
-            .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .bounceClick(scaleDown = 0.98f, onClick = onClick),
         shape = RoundedCornerShape(16.dp),

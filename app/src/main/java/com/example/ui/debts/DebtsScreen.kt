@@ -38,6 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CallMade
 import androidx.compose.material.icons.filled.CallReceived
@@ -106,6 +107,7 @@ import com.example.R
 import com.example.data.model.Account
 import com.example.data.model.Debt
 import com.example.data.model.DebtType
+import com.example.ui.dialogs.WalletCalendarDatePickerDialog
 import com.example.ui.motion.bounceClick
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
@@ -532,11 +534,6 @@ private fun DebtCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = if (isDark) 4.dp else 1.dp,
-                shape = RoundedCornerShape(20.dp),
-                spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.04f)
-            )
             .border(
                 1.dp,
                 if (debt.isSettled) {
@@ -780,7 +777,7 @@ private fun AddDebtDialog(
 
         var isNameFocused by remember { mutableStateOf(false) }
         var isAmountFocused by remember { mutableStateOf(false) }
-        var isDateFocused by remember { mutableStateOf(false) }
+        var showDatePicker by remember { mutableStateOf(false) }
         var isNoteFocused by remember { mutableStateOf(false) }
 
         val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
@@ -1081,43 +1078,46 @@ private fun AddDebtDialog(
                         badgeBg = badgeBg
                     )
 
-                    // Field 3: Due Date (Optional)
+                    // Field 3: Due Date (Optional - Calendar Picker Only)
                     DebtInputField(
-                        isFocused = isDateFocused,
+                        isFocused = showDatePicker,
                         icon = {
                             Icon(Icons.Default.CalendarToday, "Due Date", tint = activeAccent, modifier = Modifier.size(22.dp))
                         },
                         content = {
-                            BasicTextField(
-                                value = dueDate,
-                                onValueChange = { dueDate = it },
-                                textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textPrimary),
-                                cursorBrush = SolidColor(activeAccent),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .onFocusChanged { isDateFocused = it.isFocused },
-                                decorationBox = { innerTextField ->
-                                    if (dueDate.isEmpty()) {
-                                        Text("পরিশোধের সম্ভাব্য তারিখ (YYYY-MM-DD)", style = TextStyle(fontSize = 15.sp, color = textSecondary))
-                                    }
-                                    innerTextField()
-                                }
+                            Text(
+                                text = dueDate.ifBlank { "পরিশোধের সম্ভাব্য তারিখ (ঐচ্ছিক - ক্যালেন্ডার)" },
+                                style = TextStyle(
+                                    fontSize = if (dueDate.isNotBlank()) 16.sp else 14.sp,
+                                    fontWeight = if (dueDate.isNotBlank()) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (dueDate.isNotBlank()) textPrimary else textSecondary
+                                )
                             )
                         },
                         trailing = {
                             if (dueDate.isNotEmpty()) {
                                 IconButton(onClick = { dueDate = "" }) {
-                                    Icon(Icons.Default.Clear, "Clear", tint = textSecondary, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Clear, "Clear date", tint = textSecondary, modifier = Modifier.size(18.dp))
                                 }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Open Calendar",
+                                    tint = activeAccent,
+                                    modifier = Modifier.size(22.dp)
+                                )
                             }
                         },
                         cardBg = cardBg,
                         cardBorder = cardBorder,
                         activeAccent = activeAccent,
-                        badgeBg = badgeBg
+                        badgeBg = badgeBg,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(24.dp))
+                            .clickable {
+                                focusManager.clearFocus()
+                                showDatePicker = true
+                            }
                     )
 
                     // Field 4: Note / Description (Optional)
@@ -1338,6 +1338,14 @@ private fun AddDebtDialog(
                 }
             }
         }
+
+        if (showDatePicker) {
+            WalletCalendarDatePickerDialog(
+                selectedDateStr = dueDate,
+                onDateSelected = { pickedDate -> dueDate = pickedDate },
+                onDismiss = { showDatePicker = false }
+            )
+        }
     }
 }
 
@@ -1350,14 +1358,15 @@ private fun DebtInputField(
     cardBg: Color,
     cardBorder: Color,
     activeAccent: Color,
-    badgeBg: Color
+    badgeBg: Color,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         shape = RoundedCornerShape(24.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.2.dp, if (isFocused) activeAccent else cardBorder),
         shadowElevation = if (isFocused) 4.dp else 2.dp,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(68.dp)
     ) {

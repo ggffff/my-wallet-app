@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
@@ -109,7 +111,7 @@ fun AddGoalDialog(
 
         var isTitleFocused by remember { mutableStateOf(false) }
         var isAmountFocused by remember { mutableStateOf(false) }
-        var isDateFocused by remember { mutableStateOf(false) }
+        var showDatePicker by remember { mutableStateOf(false) }
 
         val cardBg = if (isDark) Color(0xFF0B1736) else Color.White
         val cardBorder = if (isDark) Color(0xFF1E3A8A) else Color(0xFFE2E8F0)
@@ -372,43 +374,46 @@ fun AddGoalDialog(
                         badgeBg = badgeBg
                     )
 
-                    // Field 3: Target Date (Optional)
+                    // Field 3: Target Date (Optional - Calendar Picker Only)
                     CompactInputField(
-                        isFocused = isDateFocused,
+                        isFocused = showDatePicker,
                         icon = {
                             Icon(Icons.Default.CalendarToday, null, tint = activeAccent, modifier = Modifier.size(20.dp))
                         },
                         content = {
-                            BasicTextField(
-                                value = targetDate,
-                                onValueChange = { targetDate = it },
-                                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = textPrimary),
-                                cursorBrush = SolidColor(activeAccent),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .onFocusChanged { isDateFocused = it.isFocused },
-                                decorationBox = { innerTextField ->
-                                    if (targetDate.isEmpty()) {
-                                        Text("Target Date (Optional: YYYY-MM-DD)", style = TextStyle(fontSize = 14.sp, color = textSecondary))
-                                    }
-                                    innerTextField()
-                                }
+                            Text(
+                                text = targetDate.ifBlank { "Target Date (Optional - Tap Calendar)" },
+                                style = TextStyle(
+                                    fontSize = if (targetDate.isNotBlank()) 15.sp else 14.sp,
+                                    fontWeight = if (targetDate.isNotBlank()) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (targetDate.isNotBlank()) textPrimary else textSecondary
+                                )
                             )
                         },
                         trailing = {
                             if (targetDate.isNotEmpty()) {
                                 IconButton(onClick = { targetDate = "" }) {
-                                    Icon(Icons.Default.Clear, "Clear", tint = textSecondary, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Clear, "Clear date", tint = textSecondary, modifier = Modifier.size(16.dp))
                                 }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Open Calendar",
+                                    tint = activeAccent,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         },
                         cardBg = cardBg,
                         cardBorder = cardBorder,
                         activeAccent = activeAccent,
-                        badgeBg = badgeBg
+                        badgeBg = badgeBg,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable {
+                                focusManager.clearFocus()
+                                showDatePicker = true
+                            }
                     )
                 }
 
@@ -515,6 +520,14 @@ fun AddGoalDialog(
                 }
             }
         }
+
+        if (showDatePicker) {
+            WalletCalendarDatePickerDialog(
+                selectedDateStr = targetDate,
+                onDateSelected = { pickedDate -> targetDate = pickedDate },
+                onDismiss = { showDatePicker = false }
+            )
+        }
     }
 }
 
@@ -527,14 +540,15 @@ private fun CompactInputField(
     cardBg: Color,
     cardBorder: Color,
     activeAccent: Color,
-    badgeBg: Color
+    badgeBg: Color,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.dp, if (isFocused) activeAccent else cardBorder),
         shadowElevation = if (isFocused) 3.dp else 1.dp,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(60.dp)
     ) {

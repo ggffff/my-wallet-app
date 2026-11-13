@@ -413,7 +413,7 @@ fun ReportsScreen(
                 }
             }
         } else {
-            itemsIndexed(categoryBreakdown) { index, item ->
+            itemsIndexed(categoryBreakdown, key = { _, item -> item.category }) { index, item ->
                 CategoryBreakdownRow(
                     stat = item,
                     language = language,
@@ -440,8 +440,7 @@ fun CategoryBreakdownRow(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-            .bounceClick(scaleDown = 0.98f) { },
+            .padding(horizontal = 20.dp, vertical = 4.dp),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
