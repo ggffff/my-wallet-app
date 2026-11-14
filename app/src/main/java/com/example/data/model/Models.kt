@@ -1,5 +1,6 @@
 package com.example.data.model
 
+import androidx.compose.runtime.Immutable
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.IgnoreExtraProperties
@@ -22,6 +23,7 @@ enum class TransactionType {
     TRANSFER
 }
 
+@Immutable
 @IgnoreExtraProperties
 data class UserProfile(
     @DocumentId val id: String = "",
@@ -37,6 +39,7 @@ data class UserProfile(
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
 
+@Immutable
 @IgnoreExtraProperties
 data class Account(
     @DocumentId val id: String = "",
@@ -51,6 +54,7 @@ data class Account(
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
 
+@Immutable
 @IgnoreExtraProperties
 data class Transaction(
     @DocumentId val id: String = "",
@@ -69,6 +73,7 @@ data class Transaction(
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
 
+@Immutable
 @IgnoreExtraProperties
 data class Goal(
     @DocumentId val id: String = "",
@@ -87,6 +92,7 @@ data class Goal(
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
 
+@Immutable
 @IgnoreExtraProperties
 data class Bill(
     @DocumentId val id: String = "",
@@ -104,6 +110,7 @@ data class Bill(
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
 
+@Immutable
 @IgnoreExtraProperties
 data class Budget(
     @DocumentId val id: String = "",
@@ -119,6 +126,7 @@ enum class DebtType {
     BORROWED   // Money borrowed from someone (payable)
 }
 
+@Immutable
 @IgnoreExtraProperties
 data class Debt(
     @DocumentId val id: String = "",
@@ -134,6 +142,7 @@ data class Debt(
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
 
+@Immutable
 @IgnoreExtraProperties
 data class HabitRoutine(
     @DocumentId val id: String = "",

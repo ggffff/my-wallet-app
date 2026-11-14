@@ -167,20 +167,19 @@ fun AnimatedGoalProgressBar(
     val clampedProgress = progressPercent.coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = clampedProgress,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+        animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
         label = "goalProgress"
     )
 
-    val infiniteTransition = rememberInfiniteTransition(label = "shimmerTransition")
-    val shimmerTranslate by infiniteTransition.animateFloat(
-        initialValue = -1f,
-        targetValue = 2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmerTranslate"
-    )
+    val fillBrush = remember(isCompleted) {
+        Brush.linearGradient(
+            colors = if (isCompleted) {
+                listOf(IncomeGreen, Color(0xFF34D399), Color(0xFF10B981))
+            } else {
+                listOf(PremiumBlue, PremiumPink, Color(0xFFF472B6))
+            }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -193,33 +192,8 @@ fun AnimatedGoalProgressBar(
                     .fillMaxWidth(animatedProgress)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(6.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = if (isCompleted) {
-                                listOf(IncomeGreen, Color(0xFF34D399), Color(0xFF10B981))
-                            } else {
-                                listOf(PremiumBlue, PremiumPink, Color(0xFFF472B6))
-                            }
-                        )
-                    )
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.White.copy(alpha = 0.4f),
-                                    Color.Transparent
-                                ),
-                                start = Offset(x = shimmerTranslate * 350f, y = 0f),
-                                end = Offset(x = (shimmerTranslate + 0.5f) * 350f, y = 0f)
-                            )
-                        )
-                )
-            }
+                    .background(fillBrush)
+            )
         }
     }
 }

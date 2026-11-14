@@ -19,9 +19,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.R
+import com.example.ui.dialogs.WalletDateUtils
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -122,9 +125,18 @@ fun GoalsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(24.dp)
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_quick_savings_goal),
+                        val context = LocalContext.current
+                        val goalImgRequest = remember(context) {
+                            ImageRequest.Builder(context)
+                                .data(R.drawable.img_quick_savings_goal)
+                                .size(240)
+                                .crossfade(false)
+                                .build()
+                        }
+                        AsyncImage(
+                            model = goalImgRequest,
                             contentDescription = "Saving Goals",
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(84.dp)
                                 .clip(RoundedCornerShape(20.dp))
@@ -161,7 +173,7 @@ fun GoalsScreen(
                             onDelete = { onDeleteGoal(goal) }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                    item(key = "goals_bottom_spacer") { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
         }
@@ -281,23 +293,18 @@ private fun GoalCardItem(
             // AI Saving Planner & Deadline countdown calculation
             val paceInfo = remember(goal.targetDate, remaining) {
                 if (goal.targetDate.isNotBlank() && remaining > 0) {
-                    try {
-                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                        val target = sdf.parse(goal.targetDate)
-                        if (target != null) {
-                            val diffDays = ((target.time - System.currentTimeMillis()) / (1000L * 60 * 60 * 24)).toInt()
-                            if (diffDays <= 0) {
-                                Pair("Deadline reached", "Consider extending the deadline or adding a lump sum")
-                            } else {
-                                val daily = remaining / diffDays
-                                val weekly = daily * 7
-                                val monthly = daily * 30
-                                val badge = "$diffDays days left"
-                                val advice = "AI Saving Plan: Save ~${formatBdt(daily, language)}/day (${formatBdt(weekly, language)}/week) to achieve on time."
-                                Pair(badge, advice)
-                            }
-                        } else null
-                    } catch (e: Exception) { null }
+                    val diffDays = WalletDateUtils.daysFromToday(goal.targetDate)?.toInt()
+                    if (diffDays != null) {
+                        if (diffDays <= 0) {
+                            Pair("Deadline reached", "Consider extending the deadline or adding a lump sum")
+                        } else {
+                            val daily = remaining / diffDays
+                            val weekly = daily * 7
+                            val badge = "$diffDays days left"
+                            val advice = "AI Saving Plan: Save ~${formatBdt(daily, language)}/day (${formatBdt(weekly, language)}/week) to achieve on time."
+                            Pair(badge, advice)
+                        }
+                    } else null
                 } else null
             }
 

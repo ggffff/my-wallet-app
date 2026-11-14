@@ -63,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -74,6 +75,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -168,39 +171,13 @@ fun AuthScreen(
 
     val isDark = LocalAppTheme.current.isDark
     val scrollState = rememberScrollState()
-
-    // Smooth, battery-friendly ambient animations for background waves and particles
-    val infiniteTransition = rememberInfiniteTransition(label = "auth_bg_transition")
-
-    val wavePhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 6.28318f, // 2 * PI
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 8500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "wave_phase"
-    )
-
-    val particleDrift by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 11000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "particle_drift"
-    )
-
-    val glowPulse by infiniteTransition.animateFloat(
-        initialValue = 0.55f,
-        targetValue = 0.95f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glow_pulse"
-    )
+    val logoRequest = remember(context) {
+        ImageRequest.Builder(context)
+            .data(R.drawable.img_wallet_3d_logo)
+            .size(480)
+            .crossfade(false)
+            .build()
+    }
 
     Surface(
         modifier = Modifier
@@ -210,183 +187,181 @@ fun AuthScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // =========================================================================
-            // 1. LIGHTWEIGHT ANIMATED BACKGROUND (Waves, Glows & Soft Floating Particles)
+            // 1. CACHED AMBIENT BACKGROUND (Zero per-frame Brush/Path allocations)
             // =========================================================================
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val w = size.width
-                val h = size.height
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .drawWithCache {
+                        val w = size.width
+                        val h = size.height
 
-                // Base Background Gradient
-                val baseGradient = if (isDark) {
-                    Brush.verticalGradient(
-                        0.0f to Color(0xFF060D1E),
-                        0.35f to Color(0xFF09142E),
-                        0.70f to Color(0xFF0D183B),
-                        1.0f to Color(0xFF070E22)
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        0.0f to Color(0xFFF8FAFC),
-                        0.40f to Color(0xFFEFF6FF),
-                        0.80f to Color(0xFFF1F5F9),
-                        1.0f to Color(0xFFE2E8F0)
-                    )
-                }
-                drawRect(brush = baseGradient)
-
-                // Soft Corner Glow Accents
-                if (isDark) {
-                    // Top-Left Blue Glow
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF0070F3).copy(alpha = 0.22f * glowPulse), Color.Transparent),
-                            center = Offset(w * 0.05f, h * 0.08f),
-                            radius = w * 0.55f
-                        ),
-                        radius = w * 0.55f,
-                        center = Offset(w * 0.05f, h * 0.08f)
-                    )
-                    // Top-Right Cyan Glow
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF00D2FF).copy(alpha = 0.18f * glowPulse), Color.Transparent),
-                            center = Offset(w * 0.92f, h * 0.12f),
-                            radius = w * 0.50f
-                        ),
-                        radius = w * 0.50f,
-                        center = Offset(w * 0.92f, h * 0.12f)
-                    )
-                    // Bottom-Right Ambient Wave Glow
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF0055FE).copy(alpha = 0.28f * glowPulse), Color.Transparent),
-                            center = Offset(w * 0.85f, h * 0.92f),
-                            radius = w * 0.65f
-                        ),
-                        radius = w * 0.65f,
-                        center = Offset(w * 0.85f, h * 0.92f)
-                    )
-                    // Bottom-Left Cyan Wave Glow
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF00E5FF).copy(alpha = 0.20f * glowPulse), Color.Transparent),
-                            center = Offset(w * 0.12f, h * 0.95f),
-                            radius = w * 0.55f
-                        ),
-                        radius = w * 0.55f,
-                        center = Offset(w * 0.12f, h * 0.95f)
-                    )
-                } else {
-                    // Soft light-mode blue glows
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF93C5FD).copy(alpha = 0.18f), Color.Transparent),
-                            center = Offset(w * 0.10f, h * 0.10f),
-                            radius = w * 0.50f
-                        ),
-                        radius = w * 0.50f,
-                        center = Offset(w * 0.10f, h * 0.10f)
-                    )
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF60A5FA).copy(alpha = 0.16f), Color.Transparent),
-                            center = Offset(w * 0.90f, h * 0.90f),
-                            radius = w * 0.55f
-                        ),
-                        radius = w * 0.55f,
-                        center = Offset(w * 0.90f, h * 0.90f)
-                    )
-                }
-
-                // Smooth Flowing Curves (Wave Ribbons matching reference)
-                val waveShift = sin(wavePhase.toDouble()).toFloat() * 14f
-
-                // Top Wave Ribbon
-                val topWave = Path().apply {
-                    moveTo(0f, 0f)
-                    lineTo(w, 0f)
-                    lineTo(w, h * 0.18f + waveShift)
-                    cubicTo(
-                        w * 0.65f, h * 0.24f - waveShift,
-                        w * 0.35f, h * 0.08f + waveShift,
-                        0f, h * 0.16f - waveShift
-                    )
-                    close()
-                }
-                drawPath(
-                    path = topWave,
-                    brush = Brush.linearGradient(
-                        colors = if (isDark) listOf(
-                            Color(0xFF0070F3).copy(alpha = 0.22f),
-                            Color(0xFF00E5FF).copy(alpha = 0.12f),
-                            Color.Transparent
-                        ) else listOf(
-                            Color(0xFF93C5FD).copy(alpha = 0.22f),
-                            Color(0xFFBAE6FD).copy(alpha = 0.12f),
-                            Color.Transparent
-                        )
-                    )
-                )
-
-                // Bottom Wave Ribbon
-                val bottomWave = Path().apply {
-                    moveTo(0f, h)
-                    lineTo(w, h)
-                    lineTo(w, h * 0.88f - waveShift)
-                    cubicTo(
-                        w * 0.70f, h * 0.80f + waveShift,
-                        w * 0.30f, h * 0.96f - waveShift,
-                        0f, h * 0.86f + waveShift
-                    )
-                    close()
-                }
-                drawPath(
-                    path = bottomWave,
-                    brush = Brush.linearGradient(
-                        colors = if (isDark) listOf(
-                            Color(0xFF0052D4).copy(alpha = 0.32f),
-                            Color(0xFF00D2FF).copy(alpha = 0.20f),
-                            Color.Transparent
-                        ) else listOf(
-                            Color(0xFF60A5FA).copy(alpha = 0.20f),
-                            Color(0xFF93C5FD).copy(alpha = 0.15f),
-                            Color.Transparent
-                        )
-                    )
-                )
-
-                // Floating Glowing Stardust & Diamond Particles
-                particles.forEach { p ->
-                    val progress = (particleDrift * p.speed + p.phase) % 1.0f
-                    val y = ((p.yRatio - progress * 0.08f) % 1.0f + 1.0f) % 1.0f * h
-                    val x = p.xRatio * w + sin((progress * 6.28f + p.phase).toDouble()).toFloat() * 6f
-                    val alpha = (0.25f + 0.35f * sin((progress * 6.28f + p.phase).toDouble()).toFloat()).coerceIn(0.10f, 0.65f)
-
-                    val particleColor = if (isDark) {
-                        Color(0xFF60A5FA).copy(alpha = alpha)
-                    } else {
-                        Color(0xFF3B82F6).copy(alpha = alpha * 0.75f)
-                    }
-
-                    if (p.isDiamond) {
-                        val dSize = p.sizeDp.dp.toPx()
-                        rotate(degrees = 45f, pivot = Offset(x, y)) {
-                            drawRoundRect(
-                                color = particleColor,
-                                topLeft = Offset(x - dSize / 2f, y - dSize / 2f),
-                                size = androidx.compose.ui.geometry.Size(dSize, dSize),
-                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                        val baseGradient = if (isDark) {
+                            Brush.verticalGradient(
+                                0.0f to Color(0xFF060D1E),
+                                0.35f to Color(0xFF09142E),
+                                0.70f to Color(0xFF0D183B),
+                                1.0f to Color(0xFF070E22)
+                            )
+                        } else {
+                            Brush.verticalGradient(
+                                0.0f to Color(0xFFF8FAFC),
+                                0.40f to Color(0xFFEFF6FF),
+                                0.80f to Color(0xFFF1F5F9),
+                                1.0f to Color(0xFFE2E8F0)
                             )
                         }
-                    } else {
-                        drawCircle(
-                            color = particleColor,
-                            radius = (p.sizeDp / 2f).dp.toPx(),
-                            center = Offset(x, y)
+
+                        val glowSpots = if (isDark) {
+                            listOf(
+                                Triple(
+                                    Offset(w * 0.05f, h * 0.08f),
+                                    w * 0.55f,
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFF0070F3).copy(alpha = 0.19f), Color.Transparent),
+                                        center = Offset(w * 0.05f, h * 0.08f),
+                                        radius = w * 0.55f
+                                    )
+                                ),
+                                Triple(
+                                    Offset(w * 0.92f, h * 0.12f),
+                                    w * 0.50f,
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFF00D2FF).copy(alpha = 0.15f), Color.Transparent),
+                                        center = Offset(w * 0.92f, h * 0.12f),
+                                        radius = w * 0.50f
+                                    )
+                                ),
+                                Triple(
+                                    Offset(w * 0.85f, h * 0.92f),
+                                    w * 0.65f,
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFF0055FE).copy(alpha = 0.24f), Color.Transparent),
+                                        center = Offset(w * 0.85f, h * 0.92f),
+                                        radius = w * 0.65f
+                                    )
+                                ),
+                                Triple(
+                                    Offset(w * 0.12f, h * 0.95f),
+                                    w * 0.55f,
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFF00E5FF).copy(alpha = 0.17f), Color.Transparent),
+                                        center = Offset(w * 0.12f, h * 0.95f),
+                                        radius = w * 0.55f
+                                    )
+                                )
+                            )
+                        } else {
+                            listOf(
+                                Triple(
+                                    Offset(w * 0.10f, h * 0.10f),
+                                    w * 0.50f,
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFF93C5FD).copy(alpha = 0.18f), Color.Transparent),
+                                        center = Offset(w * 0.10f, h * 0.10f),
+                                        radius = w * 0.50f
+                                    )
+                                ),
+                                Triple(
+                                    Offset(w * 0.90f, h * 0.90f),
+                                    w * 0.55f,
+                                    Brush.radialGradient(
+                                        colors = listOf(Color(0xFF60A5FA).copy(alpha = 0.16f), Color.Transparent),
+                                        center = Offset(w * 0.90f, h * 0.90f),
+                                        radius = w * 0.55f
+                                    )
+                                )
+                            )
+                        }
+
+                        val topWave = Path().apply {
+                            moveTo(0f, 0f)
+                            lineTo(w, 0f)
+                            lineTo(w, h * 0.18f)
+                            cubicTo(
+                                w * 0.65f, h * 0.24f,
+                                w * 0.35f, h * 0.08f,
+                                0f, h * 0.16f
+                            )
+                            close()
+                        }
+                        val topWaveBrush = Brush.linearGradient(
+                            colors = if (isDark) listOf(
+                                Color(0xFF0070F3).copy(alpha = 0.22f),
+                                Color(0xFF00E5FF).copy(alpha = 0.12f),
+                                Color.Transparent
+                            ) else listOf(
+                                Color(0xFF93C5FD).copy(alpha = 0.22f),
+                                Color(0xFFBAE6FD).copy(alpha = 0.12f),
+                                Color.Transparent
+                            )
                         )
+
+                        val bottomWave = Path().apply {
+                            moveTo(0f, h)
+                            lineTo(w, h)
+                            lineTo(w, h * 0.88f)
+                            cubicTo(
+                                w * 0.70f, h * 0.80f,
+                                w * 0.30f, h * 0.96f,
+                                0f, h * 0.86f
+                            )
+                            close()
+                        }
+                        val bottomWaveBrush = Brush.linearGradient(
+                            colors = if (isDark) listOf(
+                                Color(0xFF0052D4).copy(alpha = 0.32f),
+                                Color(0xFF00D2FF).copy(alpha = 0.20f),
+                                Color.Transparent
+                            ) else listOf(
+                                Color(0xFF60A5FA).copy(alpha = 0.20f),
+                                Color(0xFF93C5FD).copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        )
+
+                        val cornerRadiusPx = 2.dp.toPx()
+                        val cachedParticles = particles.map { p ->
+                            val y = p.yRatio * h
+                            val x = p.xRatio * w
+                            val alpha = (0.28f + 0.28f * sin(p.phase.toDouble()).toFloat()).coerceIn(0.14f, 0.56f)
+                            val color = if (isDark) {
+                                Color(0xFF60A5FA).copy(alpha = alpha)
+                            } else {
+                                Color(0xFF3B82F6).copy(alpha = alpha * 0.75f)
+                            }
+                            Triple(Offset(x, y), p.sizeDp.dp.toPx(), Pair(p.isDiamond, color))
+                        }
+
+                        onDrawBehind {
+                            drawRect(brush = baseGradient)
+                            glowSpots.forEach { (center, radius, brush) ->
+                                drawCircle(brush = brush, radius = radius, center = center)
+                            }
+                            drawPath(path = topWave, brush = topWaveBrush)
+                            drawPath(path = bottomWave, brush = bottomWaveBrush)
+                            cachedParticles.forEach { (center, sizePx, meta) ->
+                                val (isDiamond, particleColor) = meta
+                                if (isDiamond) {
+                                    rotate(degrees = 45f, pivot = center) {
+                                        drawRoundRect(
+                                            color = particleColor,
+                                            topLeft = Offset(center.x - sizePx / 2f, center.y - sizePx / 2f),
+                                            size = androidx.compose.ui.geometry.Size(sizePx, sizePx),
+                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx, cornerRadiusPx)
+                                        )
+                                    }
+                                } else {
+                                    drawCircle(
+                                        color = particleColor,
+                                        radius = sizePx / 2f,
+                                        center = center
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-            }
+            )
 
             // =========================================================================
             // 2. FOREGROUND: CLEAN MINIMAL FINTECH CONTENT (Strictly as per Reference)
@@ -472,39 +447,30 @@ fun AuthScreen(
                             .fillMaxWidth()
                             .height(210.dp)
                     ) {
-                        // Glowing neon orbital pedestal rings
-                        Canvas(
+                        // Glowing neon orbital pedestal rings (cached with drawWithCache)
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(90.dp)
                                 .align(Alignment.BottomCenter)
-                        ) {
-                            val cx = size.width / 2f
-                            val cy = size.height * 0.52f
-                            val outerRadiusX = 135.dp.toPx()
-                            val outerRadiusY = 26.dp.toPx()
-                            val innerRadiusX = 102.dp.toPx()
-                            val innerRadiusY = 19.dp.toPx()
+                                .drawWithCache {
+                                    val cx = size.width / 2f
+                                    val cy = size.height * 0.52f
+                                    val outerRadiusX = 135.dp.toPx()
+                                    val outerRadiusY = 26.dp.toPx()
+                                    val innerRadiusX = 102.dp.toPx()
+                                    val innerRadiusY = 19.dp.toPx()
 
-                            if (isDark) {
-                                // Soft intense neon blue radial diffuse glow
-                                drawOval(
-                                    brush = Brush.radialGradient(
+                                    val darkGlowBrush = Brush.radialGradient(
                                         colors = listOf(
-                                            Color(0xFF00E5FF).copy(alpha = 0.45f * glowPulse),
-                                            Color(0xFF0070F3).copy(alpha = 0.25f * glowPulse),
+                                            Color(0xFF00E5FF).copy(alpha = 0.36f),
+                                            Color(0xFF0070F3).copy(alpha = 0.20f),
                                             Color.Transparent
                                         ),
                                         center = Offset(cx, cy),
                                         radius = outerRadiusX * 1.15f
-                                    ),
-                                    topLeft = Offset(cx - outerRadiusX * 1.1f, cy - outerRadiusY * 1.4f),
-                                    size = androidx.compose.ui.geometry.Size(outerRadiusX * 2.2f, outerRadiusY * 2.8f)
-                                )
-
-                                // Outer crisp neon ellipse ring
-                                drawOval(
-                                    brush = Brush.horizontalGradient(
+                                    )
+                                    val darkOuterRingBrush = Brush.horizontalGradient(
                                         colors = listOf(
                                             Color(0xFF0070F3).copy(alpha = 0.3f),
                                             Color(0xFF00E5FF).copy(alpha = 0.95f),
@@ -513,15 +479,8 @@ fun AuthScreen(
                                         ),
                                         startX = cx - outerRadiusX,
                                         endX = cx + outerRadiusX
-                                    ),
-                                    topLeft = Offset(cx - outerRadiusX, cy - outerRadiusY),
-                                    size = androidx.compose.ui.geometry.Size(outerRadiusX * 2f, outerRadiusY * 2f),
-                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
-                                )
-
-                                // Inner bright neon ellipse ring
-                                drawOval(
-                                    brush = Brush.horizontalGradient(
+                                    )
+                                    val darkInnerRingBrush = Brush.horizontalGradient(
                                         colors = listOf(
                                             Color(0xFF0052FE).copy(alpha = 0.2f),
                                             Color(0xFF38BDF8).copy(alpha = 0.90f),
@@ -530,36 +489,56 @@ fun AuthScreen(
                                         ),
                                         startX = cx - innerRadiusX,
                                         endX = cx + innerRadiusX
-                                    ),
-                                    topLeft = Offset(cx - innerRadiusX, cy - innerRadiusY),
-                                    size = androidx.compose.ui.geometry.Size(innerRadiusX * 2f, innerRadiusY * 2f),
-                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
-                                )
-                            } else {
-                                // Soft light mode pedestal shadow & gentle blue ring
-                                drawOval(
-                                    brush = Brush.radialGradient(
+                                    )
+                                    val lightGlowBrush = Brush.radialGradient(
                                         colors = listOf(
                                             Color(0xFF60A5FA).copy(alpha = 0.25f),
                                             Color.Transparent
                                         ),
                                         center = Offset(cx, cy),
                                         radius = outerRadiusX
-                                    ),
-                                    topLeft = Offset(cx - outerRadiusX, cy - outerRadiusY),
-                                    size = androidx.compose.ui.geometry.Size(outerRadiusX * 2f, outerRadiusY * 2f)
-                                )
-                                drawOval(
-                                    color = Color(0xFF38BDF8).copy(alpha = 0.6f),
-                                    topLeft = Offset(cx - innerRadiusX, cy - innerRadiusY),
-                                    size = androidx.compose.ui.geometry.Size(innerRadiusX * 2f, innerRadiusY * 2f),
-                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
-                                )
-                            }
-                        }
+                                    )
+                                    val outerStroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
+                                    val innerStroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
 
-                        Image(
-                            painter = painterResource(id = R.drawable.img_wallet_3d_logo),
+                                    onDrawBehind {
+                                        if (isDark) {
+                                            drawOval(
+                                                brush = darkGlowBrush,
+                                                topLeft = Offset(cx - outerRadiusX * 1.1f, cy - outerRadiusY * 1.4f),
+                                                size = androidx.compose.ui.geometry.Size(outerRadiusX * 2.2f, outerRadiusY * 2.8f)
+                                            )
+                                            drawOval(
+                                                brush = darkOuterRingBrush,
+                                                topLeft = Offset(cx - outerRadiusX, cy - outerRadiusY),
+                                                size = androidx.compose.ui.geometry.Size(outerRadiusX * 2f, outerRadiusY * 2f),
+                                                style = outerStroke
+                                            )
+                                            drawOval(
+                                                brush = darkInnerRingBrush,
+                                                topLeft = Offset(cx - innerRadiusX, cy - innerRadiusY),
+                                                size = androidx.compose.ui.geometry.Size(innerRadiusX * 2f, innerRadiusY * 2f),
+                                                style = innerStroke
+                                            )
+                                        } else {
+                                            drawOval(
+                                                brush = lightGlowBrush,
+                                                topLeft = Offset(cx - outerRadiusX, cy - outerRadiusY),
+                                                size = androidx.compose.ui.geometry.Size(outerRadiusX * 2f, outerRadiusY * 2f)
+                                            )
+                                            drawOval(
+                                                color = Color(0xFF38BDF8).copy(alpha = 0.6f),
+                                                topLeft = Offset(cx - innerRadiusX, cy - innerRadiusY),
+                                                size = androidx.compose.ui.geometry.Size(innerRadiusX * 2f, innerRadiusY * 2f),
+                                                style = innerStroke
+                                            )
+                                        }
+                                    }
+                                }
+                        )
+
+                        AsyncImage(
+                            model = logoRequest,
                             contentDescription = "My Wallet 3D Logo",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier

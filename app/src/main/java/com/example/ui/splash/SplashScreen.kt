@@ -24,11 +24,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.R
 import com.example.ui.theme.LocalAppTheme
 import com.example.util.StringKeys
@@ -67,7 +69,14 @@ fun SplashScreen(
         }
     }
 
-    val isDark = LocalAppTheme.current.isDark
+    val context = LocalContext.current
+    val logoRequest = remember(context) {
+        ImageRequest.Builder(context)
+            .data(R.drawable.img_wallet_3d_logo)
+            .size(360)
+            .crossfade(false)
+            .build()
+    }
     val bgColor = MaterialTheme.colorScheme.background
 
     Box(
@@ -88,8 +97,8 @@ fun SplashScreen(
                     .scale(scale.value)
                     .alpha(alpha.value)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.img_wallet_3d_logo),
+                AsyncImage(
+                    model = logoRequest,
                     contentDescription = "My Wallet 3D Logo",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier

@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -16,8 +17,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,6 +72,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,6 +101,8 @@ import com.example.data.model.TransactionType
 import com.example.data.model.UserProfile
 import com.example.data.repository.WalletRepository
 import com.example.ui.accounts.AccountsScreen
+import com.example.ui.ads.rememberAdMobBannerController
+import com.example.ui.ads.rememberHomeNativeAd
 import com.example.ui.auth.AuthScreen
 import com.example.ui.bills.BillsScreen
 import com.example.ui.chat.ChatBotScreen
@@ -369,6 +373,9 @@ fun MainWalletApp(
     }
 
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
+    val saveableStateHolder = rememberSaveableStateHolder()
+    val homeNativeAd = rememberHomeNativeAd()
+    val bannerController = rememberAdMobBannerController()
 
     // Dialog states
     var showAddAccountDialog by remember { mutableStateOf(false) }
@@ -453,11 +460,6 @@ fun MainWalletApp(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(
-                                elevation = if (isDarkTheme) 20.dp else 14.dp,
-                                shape = RoundedCornerShape(28.dp),
-                                spotColor = if (isDarkTheme) Color(0xFF0070F3).copy(alpha = 0.45f) else Color(0x330038A8)
-                            )
                             .border(
                                 width = 1.2.dp,
                                 brush = Brush.linearGradient(
@@ -476,7 +478,8 @@ fun MainWalletApp(
                             .testTag("bottom_navigation_bar"),
                         shape = RoundedCornerShape(28.dp),
                         color = if (isDarkTheme) Color(0xF209142E) else Color(0xF7FFFFFF),
-                        tonalElevation = 8.dp
+                        shadowElevation = if (isDarkTheme) 10.dp else 6.dp,
+                        tonalElevation = 4.dp
                     ) {
                         Row(
                             modifier = Modifier
@@ -531,15 +534,28 @@ fun MainWalletApp(
             AnimatedContent(
                 targetState = currentScreen,
                 transitionSpec = {
-                    (fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing)) +
-                     scaleIn(initialScale = 0.96f, animationSpec = tween(260, easing = FastOutSlowInEasing)))
+                    val isForward = targetState.ordinal >= initialState.ordinal
+                    val enterOffset: (Int) -> Int = { fullWidth ->
+                        if (isForward) (fullWidth * 0.22f).toInt() else -(fullWidth * 0.22f).toInt()
+                    }
+                    val exitOffset: (Int) -> Int = { fullWidth ->
+                        if (isForward) -(fullWidth * 0.14f).toInt() else (fullWidth * 0.14f).toInt()
+                    }
+                    (slideInHorizontally(
+                        animationSpec = tween(250, easing = FastOutSlowInEasing),
+                        initialOffsetX = enterOffset
+                    ) + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)))
                         .togetherWith(
-                            fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
-                            scaleOut(targetScale = 1.02f, animationSpec = tween(160, easing = FastOutSlowInEasing))
+                            slideOutHorizontally(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                targetOffsetX = exitOffset
+                            ) + fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing))
                         )
+                        .using(SizeTransform(clip = false))
                 },
                 label = "screenTransition"
             ) { screen ->
+                saveableStateHolder.SaveableStateProvider(screen.name) {
                 when (screen) {
                     Screen.HOME -> HomeScreen(
                         userProfile = userProfile,
@@ -548,6 +564,8 @@ fun MainWalletApp(
                         bills = bills,
                         debts = debts,
                         habits = habits,
+                        preloadedNativeAd = homeNativeAd,
+                        bannerController = bannerController,
                         onAddAccountClicked = { showAddAccountDialog = true },
                         onUpdateAccount = { updated ->
                             coroutineScope.launch {
@@ -783,6 +801,7 @@ fun MainWalletApp(
                         bills = bills
                     )
                 }
+                }
             }
         }
     }
@@ -896,11 +915,7 @@ private fun androidx.compose.foundation.layout.RowScope.PremiumBottomNavItem(
                     modifier = Modifier
                         .width(58.dp)
                         .height(34.dp)
-                        .shadow(
-                            elevation = 10.dp,
-                            shape = RoundedCornerShape(17.dp),
-                            spotColor = if (isDark) Color(0xFF00D2FF).copy(alpha = 0.65f) else Color(0xFF0052FE).copy(alpha = 0.45f)
-                        )
+                        .clip(RoundedCornerShape(17.dp))
                         .background(activeGradient, shape = RoundedCornerShape(17.dp))
                 ) {
                     Icon(

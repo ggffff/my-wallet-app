@@ -101,8 +101,9 @@ import com.example.util.appString
 import com.example.util.formatBdt
 import com.example.util.formatCurrency
 import com.example.ui.ads.AdMobBanner
+import com.example.ui.ads.AdMobBannerController
 import com.example.ui.ads.AdMobNativeAdCard
-import com.example.ui.ads.rememberHomeNativeAd
+import com.google.android.gms.ads.nativead.NativeAd
 
 @Composable
 fun HomeScreen(
@@ -112,6 +113,8 @@ fun HomeScreen(
     bills: List<Bill>,
     debts: List<Debt> = emptyList(),
     habits: List<HabitRoutine> = emptyList(),
+    preloadedNativeAd: NativeAd? = null,
+    bannerController: AdMobBannerController? = null,
     onAddAccountClicked: () -> Unit,
     onUpdateAccount: (Account) -> Unit = {},
     onDeleteAccount: (Account) -> Unit = {},
@@ -131,7 +134,7 @@ fun HomeScreen(
     var isBalanceHidden by remember { mutableStateOf(false) }
     var accountToUpdate by remember { mutableStateOf<Account?>(null) }
     var showCurrencyDialog by remember { mutableStateOf(false) }
-    val homeNativeAd = rememberHomeNativeAd()
+    val homeNativeAd = preloadedNativeAd
 
     val netBalance = remember(accounts) {
         accounts.sumOf { it.balance }
@@ -148,6 +151,8 @@ fun HomeScreen(
     val upcomingBills = remember(bills) {
         bills.filter { !it.isPaid && it.notifyEnabled }.take(2)
     }
+
+    val recentTransactions = remember(transactions) { transactions.take(6) }
 
     val eyeRotation by animateFloatAsState(
         targetValue = if (isBalanceHidden) 180f else 0f,
@@ -181,13 +186,9 @@ fun HomeScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
-                    .shadow(
-                        elevation = if (isDark) 8.dp else 4.dp,
-                        shape = RoundedCornerShape(26.dp),
-                        spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.08f)
-                    ),
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
                 shape = RoundedCornerShape(26.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 4.dp else 2.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
                 Box(
@@ -661,11 +662,15 @@ fun HomeScreen(
         // 4.5. Quick Utilities: Debts & Habits
         item(key = "home_debts_habits") {
             val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
-            val activeDebts = debts.filter { !it.isSettled }
-            val lentSum = activeDebts.filter { it.type == "LENT" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
-            val borrowSum = activeDebts.filter { it.type == "BORROWED" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+            val activeDebts = remember(debts) { debts.filter { !it.isSettled } }
+            val lentSum = remember(activeDebts) {
+                activeDebts.filter { it.type == "LENT" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+            }
+            val borrowSum = remember(activeDebts) {
+                activeDebts.filter { it.type == "BORROWED" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+            }
 
-            val nextHabit = habits.firstOrNull()
+            val nextHabit = remember(habits) { habits.firstOrNull() }
 
             Row(
                 modifier = Modifier
@@ -946,7 +951,6 @@ fun HomeScreen(
                 }
             }
         } else {
-            val recentTransactions = transactions.take(6)
             val nativeAdInsertIndex = when {
                 recentTransactions.size >= 3 -> 1 // Naturally between 2nd and 3rd transaction item
                 else -> 0 // Between 1st & 2nd item (size == 2) or below 1st item (size == 1)
@@ -976,7 +980,8 @@ fun HomeScreen(
         AdMobBanner(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp)
+                .padding(horizontal = 20.dp, vertical = 6.dp),
+            bannerController = bannerController
         )
     }
 
@@ -1030,7 +1035,6 @@ fun VisaCardCoinsIllustration(
                 .rotate(-10f)
                 .width(78.dp)
                 .height(48.dp)
-                .shadow(6.dp, RoundedCornerShape(8.dp), spotColor = Color(0xFF0038A8).copy(alpha = 0.5f))
                 .clip(RoundedCornerShape(8.dp))
                 .background(
                     Brush.linearGradient(
@@ -1103,7 +1107,6 @@ fun VisaCardCoinsIllustration(
             Box(
                 modifier = Modifier
                     .size(30.dp)
-                    .shadow(4.dp, CircleShape, spotColor = Color(0xFF78350F).copy(alpha = 0.4f))
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(

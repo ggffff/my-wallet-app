@@ -52,13 +52,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.R
 import com.example.data.model.Account
 import com.example.data.model.AccountType
@@ -93,6 +95,7 @@ fun AddAccountDialog(
     ) {
         val activeTheme = LocalAppTheme.current
         val isDark = activeTheme.isDark
+        val context = LocalContext.current
         val focusManager = LocalFocusManager.current
         val scrollState = rememberScrollState()
 
@@ -121,14 +124,10 @@ fun AddAccountDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 20.dp)
                 .heightIn(max = 640.dp)
-                .shadow(
-                    elevation = if (isDark) 12.dp else 8.dp,
-                    shape = RoundedCornerShape(28.dp),
-                    spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.12f)
-                )
                 .testTag("add_account_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
+            shadowElevation = if (isDark) 10.dp else 6.dp,
             border = BorderStroke(1.2.dp, cardBorder)
         ) {
             Column(
@@ -163,8 +162,14 @@ fun AddAccountDialog(
                             .padding(end = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_wallet_3d_logo),
+                        AsyncImage(
+                            model = remember(context) {
+                                ImageRequest.Builder(context)
+                                    .data(R.drawable.img_wallet_3d_logo)
+                                    .size(160)
+                                    .crossfade(true)
+                                    .build()
+                            },
                             contentDescription = "Wallet Logo",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(54.dp)

@@ -148,7 +148,6 @@ fun ReportsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(2.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.05f))
                         .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
                     shape = RoundedCornerShape(22.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -340,7 +339,6 @@ fun ReportsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(2.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.08f))
                         .background(Brush.linearGradient(aiGradient), RoundedCornerShape(20.dp))
                         .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(20.dp))
                         .padding(18.dp)

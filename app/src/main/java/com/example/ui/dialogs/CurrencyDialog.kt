@@ -241,7 +241,7 @@ fun CurrencyDialog(
                         .heightIn(max = 380.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredCurrencies) { currency ->
+                    items(filteredCurrencies, key = { it.code }) { currency ->
                         val isSelected = currency == currentCurrency
 
                         Surface(

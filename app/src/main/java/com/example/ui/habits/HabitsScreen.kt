@@ -100,20 +100,19 @@ fun HabitsScreen(
     var habitToComplete by remember { mutableStateOf<HabitRoutine?>(null) }
     var habitToDelete by remember { mutableStateOf<HabitRoutine?>(null) }
 
-    val todaySdf = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
-    val todayDate = remember { Date() }
-
-    val filteredHabits = habits.filter { habit ->
-        when (selectedFilter) {
-            "UPCOMING" -> {
-                val days = calculateDaysRemaining(habit.nextDueDate, todaySdf, todayDate)
-                days in 0..7
+    val filteredHabits = remember(habits, selectedFilter) {
+        habits.filter { habit ->
+            when (selectedFilter) {
+                "UPCOMING" -> {
+                    val days = (com.example.ui.dialogs.WalletDateUtils.daysFromToday(habit.nextDueDate) ?: 0L).toInt()
+                    days in 0..7
+                }
+                "THIS_MONTH" -> {
+                    val days = (com.example.ui.dialogs.WalletDateUtils.daysFromToday(habit.nextDueDate) ?: 0L).toInt()
+                    days in 0..31
+                }
+                else -> true
             }
-            "THIS_MONTH" -> {
-                val days = calculateDaysRemaining(habit.nextDueDate, todaySdf, todayDate)
-                days in 0..31
-            }
-            else -> true
         }
     }
 
@@ -129,7 +128,7 @@ fun HabitsScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
+            item(key = "habits_header") {
                 Spacer(modifier = Modifier.height(8.dp))
                 // Title
                 Row(
@@ -153,21 +152,17 @@ fun HabitsScreen(
             }
 
             // Highlights Card (Haircut example & active routines count)
-            item {
+            item(key = "habits_highlight_card") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(
-                            elevation = if (isDark) 6.dp else 2.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f)
-                        )
                         .border(
                             1.dp,
                             if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
                             RoundedCornerShape(24.dp)
                         ),
                     shape = RoundedCornerShape(24.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 4.dp else 2.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isDark) Color(0xFF0B1733) else Color(0xFFFFFFFF)
                     )
@@ -262,7 +257,7 @@ fun HabitsScreen(
             }
 
             // Filter Chips
-            item {
+            item(key = "habits_filters") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -304,7 +299,7 @@ fun HabitsScreen(
 
             // Habits List
             if (filteredHabits.isEmpty()) {
-                item {
+                item(key = "habits_empty") {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -346,15 +341,13 @@ fun HabitsScreen(
                     HabitCardItem(
                         habit = habit,
                         isDark = isDark,
-                        todaySdf = todaySdf,
-                        todayDate = todayDate,
                         onMarkDone = { habitToComplete = habit },
                         onDelete = { habitToDelete = habit }
                     )
                 }
             }
 
-            item {
+            item(key = "habits_bottom_spacer") {
                 Spacer(modifier = Modifier.height(96.dp))
             }
         }
@@ -430,13 +423,13 @@ fun HabitsScreen(
 private fun HabitCardItem(
     habit: HabitRoutine,
     isDark: Boolean,
-    todaySdf: SimpleDateFormat,
-    todayDate: Date,
     onMarkDone: () -> Unit,
     onDelete: () -> Unit
 ) {
     val language = LocalAppLanguage.current
-    val daysRemaining = calculateDaysRemaining(habit.nextDueDate, todaySdf, todayDate)
+    val daysRemaining = remember(habit.nextDueDate) {
+        (com.example.ui.dialogs.WalletDateUtils.daysFromToday(habit.nextDueDate) ?: 0L).toInt()
+    }
 
     val (badgeText, badgeColor) = when {
         daysRemaining < 0 -> "মেয়াদ শেষ (${-daysRemaining} দিন পার)" to ExpenseRed

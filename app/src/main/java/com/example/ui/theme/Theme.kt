@@ -289,11 +289,10 @@ fun MyWalletTheme(
     }
 
     val baseScheme = resolvedTheme.toColorScheme()
-    val animatedScheme = animatedColorScheme(baseScheme)
 
     CompositionLocalProvider(LocalAppTheme provides resolvedTheme) {
         MaterialTheme(
-            colorScheme = animatedScheme,
+            colorScheme = baseScheme,
             typography = Typography,
             content = content
         )

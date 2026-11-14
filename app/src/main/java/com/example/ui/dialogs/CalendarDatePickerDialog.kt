@@ -50,15 +50,26 @@ import java.util.TimeZone
 object WalletDateUtils {
     private const val DATE_PATTERN = "yyyy-MM-dd"
 
+    private val localDateFormat: ThreadLocal<SimpleDateFormat> = ThreadLocal.withInitial {
+        SimpleDateFormat(DATE_PATTERN, Locale.US)
+    }
+
+    private val utcDateFormat: ThreadLocal<SimpleDateFormat> = ThreadLocal.withInitial {
+        SimpleDateFormat(DATE_PATTERN, Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false
+        }
+    }
+
     fun todayLocalDateStr(): String {
-        val localFormat = SimpleDateFormat(DATE_PATTERN, Locale.US)
-        return localFormat.format(Date())
+        val format = localDateFormat.get() ?: SimpleDateFormat(DATE_PATTERN, Locale.US)
+        return format.format(Date())
     }
 
     fun parseDateToUtcMillis(dateStr: String): Long? {
         if (dateStr.isBlank()) return null
         return try {
-            val utcFormat = SimpleDateFormat(DATE_PATTERN, Locale.US).apply {
+            val utcFormat = utcDateFormat.get() ?: SimpleDateFormat(DATE_PATTERN, Locale.US).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
                 isLenient = false
             }
@@ -69,10 +80,20 @@ object WalletDateUtils {
     }
 
     fun formatUtcMillisToDateStr(millis: Long): String {
-        val utcFormat = SimpleDateFormat(DATE_PATTERN, Locale.US).apply {
+        val utcFormat = utcDateFormat.get() ?: SimpleDateFormat(DATE_PATTERN, Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
         return utcFormat.format(Date(millis))
+    }
+
+    /**
+     * Returns (targetDate - today) in whole days using cached UTC parsers,
+     * avoiding per-row SimpleDateFormat allocations inside scrolling lists.
+     */
+    fun daysFromToday(dateStr: String): Long? {
+        val targetMillis = parseDateToUtcMillis(dateStr) ?: return null
+        val todayMillis = parseDateToUtcMillis(todayLocalDateStr()) ?: return null
+        return (targetMillis - todayMillis) / (1000L * 60L * 60L * 24L)
     }
 }
 

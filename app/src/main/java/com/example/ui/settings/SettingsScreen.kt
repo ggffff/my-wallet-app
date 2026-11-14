@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,10 +23,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -86,6 +86,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.model.UserProfile
 import com.example.ui.motion.PulsingAuraGlow
 import com.example.ui.motion.bounceClick
@@ -211,35 +212,36 @@ fun SettingsScreen(
     val presetAvatars = listOf("avatar_1", "avatar_2", "avatar_3", "avatar_4")
     val avatarColors = listOf(PremiumBlue, PremiumPink, IncomeGreen, Color(0xFFA855F7))
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 96.dp)
-            .testTag("settings_screen")
+            .testTag("settings_screen"),
+        contentPadding = PaddingValues(bottom = 96.dp)
     ) {
         // Header
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text(
-                text = "Profile & Settings",
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Personalize profile photo, dark/light appearance & financial utilities",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        item(key = "settings_header") {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                Text(
+                    text = "Profile & Settings",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Personalize profile photo, dark/light appearance & financial utilities",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         // ==========================================
         // 1. Profile Photo & Credentials Card
         // ==========================================
+        item(key = "settings_profile_card") {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
-                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -289,8 +291,15 @@ fun SettingsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (isCustomPhoto) {
+                            val avatarRequest = remember(selectedAvatar, context) {
+                                ImageRequest.Builder(context)
+                                    .data(selectedAvatar)
+                                    .size(256)
+                                    .crossfade(false)
+                                    .build()
+                            }
                             AsyncImage(
-                                model = selectedAvatar,
+                                model = avatarRequest,
                                 contentDescription = "User Profile Picture",
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -558,15 +567,16 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ==========================================
         // 2. Dark / Light Appearance Section
         // ==========================================
+        item(key = "settings_theme_card") {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
-                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -758,15 +768,16 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ==========================================
         // 3. Language & Currency Section
         // ==========================================
+        item(key = "settings_lang_currency_card") {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
-                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -910,15 +921,16 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ==========================================
         // 4. Financial Utilities Section (Goals & Bills)
         // ==========================================
+        item(key = "settings_utilities_card") {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 6.dp)
-                .shadow(1.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.04f))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -1045,18 +1057,18 @@ fun SettingsScreen(
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(10.dp))
+        }
 
         // ==========================================
         // 5. Sign Out / Sign In Button
         // ==========================================
+        item(key = "settings_signout_card") {
+        Spacer(modifier = Modifier.height(10.dp))
         val isSignedIn = com.google.firebase.Firebase.auth.currentUser != null
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .shadow(1.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.04f))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(20.dp)),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -1084,6 +1096,7 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
         }
     }
 

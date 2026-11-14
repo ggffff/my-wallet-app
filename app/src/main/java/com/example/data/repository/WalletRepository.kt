@@ -16,11 +16,15 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
 class WalletRepository(private val db: FirebaseFirestore) {
@@ -30,23 +34,30 @@ class WalletRepository(private val db: FirebaseFirestore) {
     )
 
     companion object {
+        @Volatile
+        private var cachedFirestore: FirebaseFirestore? = null
+
         private fun resolveFirestore(context: Context): FirebaseFirestore {
+            cachedFirestore?.let { return it }
             return try {
-                try {
+                val instance = try {
                     val dbName = context.getString(R.string.firestore_database_id)
                     if (dbName.isNotBlank()) {
-                        return FirebaseFirestore.getInstance(dbName)
-                    }
+                        FirebaseFirestore.getInstance(dbName)
+                    } else null
                 } catch (_: Throwable) {
-                    // Fall back to identifier lookup
+                    null
+                } ?: run {
+                    val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
+                    val dbName = if (resId != 0) context.getString(resId) else null
+                    if (!dbName.isNullOrBlank()) {
+                        FirebaseFirestore.getInstance(dbName)
+                    } else {
+                        FirebaseFirestore.getInstance()
+                    }
                 }
-                val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
-                val dbName = if (resId != 0) context.getString(resId) else null
-                if (!dbName.isNullOrBlank()) {
-                    FirebaseFirestore.getInstance(dbName)
-                } else {
-                    FirebaseFirestore.getInstance()
-                }
+                cachedFirestore = instance
+                instance
             } catch (e: Exception) {
                 android.util.Log.e("WalletRepository", "Failed to get named Firestore instance; falling back to default", e)
                 FirebaseFirestore.getInstance()
@@ -104,7 +115,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestProfile
         }
-        return callbackFlow {
+        return callbackFlow<com.google.firebase.firestore.DocumentSnapshot?> {
             val docRef = db.collection("users").document(uid)
             val registration = docRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -112,11 +123,12 @@ class WalletRepository(private val db: FirebaseFirestore) {
                     trySend(null)
                     return@addSnapshotListener
                 }
-                val profile = snapshot?.toObject(UserProfile::class.java)
-                trySend(profile)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.toObject(UserProfile::class.java)
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun saveUserProfile(profile: UserProfile) {
@@ -172,19 +184,20 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestAccounts
         }
-        return callbackFlow {
+        return callbackFlow<QuerySnapshot?> {
             val colRef = db.collection("users").document(uid).collection("accounts")
             val registration = colRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     handleFirestoreError(error, OperationType.LIST, colRef.path)
-                    trySend(emptyList())
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                val accounts = snapshot?.documents?.mapNotNull { it.toObject(Account::class.java) } ?: emptyList()
-                trySend(accounts)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.documents?.mapNotNull { it.toObject(Account::class.java) } ?: emptyList()
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun addAccount(account: Account): String {
@@ -314,19 +327,20 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestTransactions
         }
-        return callbackFlow {
+        return callbackFlow<QuerySnapshot?> {
             val colRef = db.collection("users").document(uid).collection("transactions")
             val registration = colRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     handleFirestoreError(error, OperationType.LIST, colRef.path)
-                    trySend(emptyList())
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { it.toObject(Transaction::class.java) } ?: emptyList()
-                trySend(list)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.documents?.mapNotNull { it.toObject(Transaction::class.java) } ?: emptyList()
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun addTransaction(txn: Transaction) {
@@ -563,19 +577,20 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestGoals
         }
-        return callbackFlow {
+        return callbackFlow<QuerySnapshot?> {
             val colRef = db.collection("users").document(uid).collection("goals")
             val registration = colRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     handleFirestoreError(error, OperationType.LIST, colRef.path)
-                    trySend(emptyList())
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { it.toObject(Goal::class.java) } ?: emptyList()
-                trySend(list)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.documents?.mapNotNull { it.toObject(Goal::class.java) } ?: emptyList()
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun addGoal(goal: Goal) {
@@ -672,19 +687,20 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestBills
         }
-        return callbackFlow {
+        return callbackFlow<QuerySnapshot?> {
             val colRef = db.collection("users").document(uid).collection("bills")
             val registration = colRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     handleFirestoreError(error, OperationType.LIST, colRef.path)
-                    trySend(emptyList())
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { it.toObject(Bill::class.java) } ?: emptyList()
-                trySend(list)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.documents?.mapNotNull { it.toObject(Bill::class.java) } ?: emptyList()
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun addBill(bill: Bill) {
@@ -804,19 +820,20 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestBudgets
         }
-        return callbackFlow {
+        return callbackFlow<QuerySnapshot?> {
             val colRef = db.collection("users").document(uid).collection("budgets")
             val registration = colRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     handleFirestoreError(error, OperationType.LIST, colRef.path)
-                    trySend(emptyList())
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { it.toObject(Budget::class.java) } ?: emptyList()
-                trySend(list)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.documents?.mapNotNull { it.toObject(Budget::class.java) } ?: emptyList()
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun saveBudget(budget: Budget) {
@@ -871,19 +888,20 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestDebts
         }
-        return callbackFlow {
+        return callbackFlow<QuerySnapshot?> {
             val colRef = db.collection("users").document(uid).collection("debts")
             val registration = colRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     handleFirestoreError(error, OperationType.LIST, colRef.path)
-                    trySend(emptyList())
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { it.toObject(Debt::class.java) } ?: emptyList()
-                trySend(list)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.documents?.mapNotNull { it.toObject(Debt::class.java) } ?: emptyList()
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun addDebt(debt: Debt, accountId: String? = null) {
@@ -1007,19 +1025,20 @@ class WalletRepository(private val db: FirebaseFirestore) {
         if (uid == null) {
             return guestHabits
         }
-        return callbackFlow {
+        return callbackFlow<QuerySnapshot?> {
             val colRef = db.collection("users").document(uid).collection("habits")
             val registration = colRef.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     handleFirestoreError(error, OperationType.LIST, colRef.path)
-                    trySend(emptyList())
+                    trySend(null)
                     return@addSnapshotListener
                 }
-                val list = snapshot?.documents?.mapNotNull { it.toObject(HabitRoutine::class.java) } ?: emptyList()
-                trySend(list)
+                trySend(snapshot)
             }
             awaitClose { registration.remove() }
-        }
+        }.map { snapshot ->
+            snapshot?.documents?.mapNotNull { it.toObject(HabitRoutine::class.java) } ?: emptyList()
+        }.flowOn(Dispatchers.Default)
     }
 
     suspend fun addHabit(habit: HabitRoutine) {

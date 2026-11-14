@@ -211,10 +211,9 @@ fun AccountsScreen(
                         .staggeredEntrance(index = 1)
                 ) {
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(4.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(22.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                     ) {
                         Box(
@@ -660,9 +659,9 @@ fun Modern3DAccountCard(
             .height(178.dp)
             .tilt3D(maxRotationX = 9f, maxRotationY = 9f, elevationDp = 14f)
             .neonGlow(color = gradientColors.first().copy(alpha = 0.5f), shape = RoundedCornerShape(22.dp), strokeWidth = 1.dp)
-            .shadow(14.dp, RoundedCornerShape(22.dp))
             .bounceClick(scaleDown = 0.98f, onClick = onClick),
         shape = RoundedCornerShape(22.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(

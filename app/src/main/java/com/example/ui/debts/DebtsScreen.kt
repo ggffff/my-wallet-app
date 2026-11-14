@@ -137,20 +137,26 @@ fun DebtsScreen(
     var debtToRepay by remember { mutableStateOf<Debt?>(null) }
     var debtToDelete by remember { mutableStateOf<Debt?>(null) }
 
-    // Computations
-    val activeDebts = debts.filter { !it.isSettled }
-    val totalReceivable = activeDebts.filter { it.type == DebtType.LENT.name }
-        .sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
-    val totalPayable = activeDebts.filter { it.type == DebtType.BORROWED.name }
-        .sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+    // Memoized Computations
+    val activeDebts = remember(debts) { debts.filter { !it.isSettled } }
+    val totalReceivable = remember(activeDebts) {
+        activeDebts.filter { it.type == DebtType.LENT.name }
+            .sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+    }
+    val totalPayable = remember(activeDebts) {
+        activeDebts.filter { it.type == DebtType.BORROWED.name }
+            .sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
+    }
     val netBalance = totalReceivable - totalPayable
 
-    val filteredDebts = debts.filter { debt ->
-        when (selectedFilter) {
-            "LENT" -> debt.type == DebtType.LENT.name && !debt.isSettled
-            "BORROWED" -> debt.type == DebtType.BORROWED.name && !debt.isSettled
-            "SETTLED" -> debt.isSettled
-            else -> true
+    val filteredDebts = remember(debts, selectedFilter) {
+        debts.filter { debt ->
+            when (selectedFilter) {
+                "LENT" -> debt.type == DebtType.LENT.name && !debt.isSettled
+                "BORROWED" -> debt.type == DebtType.BORROWED.name && !debt.isSettled
+                "SETTLED" -> debt.isSettled
+                else -> true
+            }
         }
     }
 
@@ -166,7 +172,7 @@ fun DebtsScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
+            item(key = "debts_header") {
                 Spacer(modifier = Modifier.height(8.dp))
                 // Title and Subtitle
                 Row(
@@ -190,21 +196,17 @@ fun DebtsScreen(
             }
 
             // Summary Card (3 Column layout: পাবো / দিতে হবে / নেট স্থিতি)
-            item {
+            item(key = "debts_summary_card") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(
-                            elevation = if (isDark) 6.dp else 2.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = if (isDark) Color(0xFF0070F3).copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.05f)
-                        )
                         .border(
                             1.dp,
                             if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE),
                             RoundedCornerShape(24.dp)
                         ),
                     shape = RoundedCornerShape(24.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 4.dp else 2.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isDark) Color(0xFF0B1733) else Color(0xFFFFFFFF)
                     )
@@ -303,7 +305,7 @@ fun DebtsScreen(
             }
 
             // Filter Chips
-            item {
+            item(key = "debts_filters") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -346,7 +348,7 @@ fun DebtsScreen(
 
             // Debts List
             if (filteredDebts.isEmpty()) {
-                item {
+                item(key = "debts_empty") {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -394,7 +396,7 @@ fun DebtsScreen(
                 }
             }
 
-            item {
+            item(key = "debts_bottom_spacer") {
                 Spacer(modifier = Modifier.height(96.dp))
             }
         }
@@ -800,14 +802,10 @@ private fun AddDebtDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 20.dp)
                 .heightIn(max = 640.dp)
-                .shadow(
-                    elevation = if (isDark) 12.dp else 8.dp,
-                    shape = RoundedCornerShape(28.dp),
-                    spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.12f)
-                )
                 .testTag("add_debt_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
+            shadowElevation = if (isDark) 8.dp else 6.dp,
             border = BorderStroke(1.2.dp, cardBorder)
         ) {
             Column(
@@ -842,8 +840,16 @@ private fun AddDebtDialog(
                             .padding(end = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_wallet_3d_logo),
+                        val ctx = androidx.compose.ui.platform.LocalContext.current
+                        val debtLogoReq = remember(ctx) {
+                            coil.request.ImageRequest.Builder(ctx)
+                                .data(R.drawable.img_wallet_3d_logo)
+                                .size(180)
+                                .crossfade(false)
+                                .build()
+                        }
+                        coil.compose.AsyncImage(
+                            model = debtLogoReq,
                             contentDescription = "Debt Illustration",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(66.dp)

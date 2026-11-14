@@ -199,14 +199,14 @@ fun StatementsScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    item {
+                    item(key = "all_categories_chip") {
                         FilterChip(
                             selected = selectedCategoryFilter == null,
                             onClick = { selectedCategoryFilter = null },
                             label = { Text("All Categories") }
                         )
                     }
-                    items(categories) { cat ->
+                    items(categories, key = { it }) { cat ->
                         FilterChip(
                             selected = selectedCategoryFilter == cat,
                             onClick = { selectedCategoryFilter = if (selectedCategoryFilter == cat) null else cat },
@@ -222,7 +222,6 @@ fun StatementsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp)
                     .staggeredEntrance(index = 3)
-                    .shadow(1.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.04f))
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)

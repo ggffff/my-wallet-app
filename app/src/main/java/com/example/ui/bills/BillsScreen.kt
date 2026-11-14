@@ -156,6 +156,9 @@ fun BillsScreen(
                 }
             }
 
+            val unpaidCount = remember(bills) { bills.count { !it.isPaid } }
+            val paidCount = remember(bills) { bills.size - unpaidCount }
+
             // Filter Tabs
             Row(
                 modifier = Modifier
@@ -166,12 +169,12 @@ fun BillsScreen(
                 FilterChip(
                     selected = selectedFilter == "UNPAID",
                     onClick = { selectedFilter = "UNPAID" },
-                    label = { Text("Unpaid (${bills.count { !it.isPaid }})") }
+                    label = { Text("Unpaid ($unpaidCount)") }
                 )
                 FilterChip(
                     selected = selectedFilter == "PAID",
                     onClick = { selectedFilter = "PAID" },
-                    label = { Text("Paid (${bills.count { it.isPaid }})") }
+                    label = { Text("Paid ($paidCount)") }
                 )
                 FilterChip(
                     selected = selectedFilter == "ALL",
@@ -223,7 +226,7 @@ fun BillsScreen(
                             onDelete = { onDeleteBill(bill) }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                    item(key = "bills_bottom_spacer") { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
         }
@@ -397,20 +400,11 @@ private fun BillCardItem(
 }
 
 private fun calculateDueStatus(dueDateStr: String): String {
-    return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        val dueDate = sdf.parse(dueDateStr) ?: return dueDateStr
-        val today = Date()
-        val diffMillis = dueDate.time - today.time
-        val diffDays = TimeUnit.MILLISECONDS.toDays(diffMillis)
-
-        when {
-            diffDays < 0 -> "Overdue by ${-diffDays}d"
-            diffDays == 0L -> "Due Today"
-            diffDays == 1L -> "Due Tomorrow"
-            else -> "Due in $diffDays days"
-        }
-    } catch (e: Exception) {
-        dueDateStr
+    val diffDays = com.example.ui.dialogs.WalletDateUtils.daysFromToday(dueDateStr) ?: return dueDateStr
+    return when {
+        diffDays < 0L -> "Overdue by ${-diffDays}d"
+        diffDays == 0L -> "Due Today"
+        diffDays == 1L -> "Due Tomorrow"
+        else -> "Due in $diffDays days"
     }
 }

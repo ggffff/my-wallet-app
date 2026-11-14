@@ -6,6 +6,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import java.text.NumberFormat
 import java.util.Locale
 
+private val cachedNumberFormat: ThreadLocal<NumberFormat> = ThreadLocal.withInitial {
+    NumberFormat.getNumberInstance(Locale.US)
+}
+
+private fun formatNumberFast(amount: Double): String {
+    return (cachedNumberFormat.get() ?: NumberFormat.getNumberInstance(Locale.US)).format(amount)
+}
+
 enum class AppLanguage(
     val code: String,
     val label: String,
@@ -70,7 +78,7 @@ enum class AppCurrency(
     KWD("KWD", "د.ك", "Kuwaiti Dinar", "Kuwait", "🇰🇼");
 
     fun format(amount: Double): String {
-        val formatted = NumberFormat.getNumberInstance(Locale.US).format(amount)
+        val formatted = formatNumberFast(amount)
         return when (code) {
             "AED", "SAR", "QAR", "KWD" -> "$formatted $symbol"
             else -> "$symbol $formatted"
@@ -998,7 +1006,7 @@ fun appString(key: String): String {
  * Uses the country's native currency symbol (e.g. ৳, $, £, د.إ, ﷼, €, CHF).
  */
 fun formatCurrency(amount: Double, language: AppLanguage = AppLanguage.BANGLADESH): String {
-    val formatted = NumberFormat.getNumberInstance(Locale.US).format(amount)
+    val formatted = formatNumberFast(amount)
     return when (language.langFamily) {
         "ar" -> "$formatted ${language.currencySymbol}"
         "de", "fr", "nl" -> "$formatted ${language.currencySymbol}"
@@ -1014,7 +1022,7 @@ fun formatCurrency(amount: Double, currency: AppCurrency): String {
  * Backward-compatible helper method that formats amounts in BDT currency (৳).
  */
 fun formatBdt(amount: Double, language: AppLanguage = AppLanguage.BANGLADESH): String {
-    val formatted = NumberFormat.getNumberInstance(Locale.US).format(amount)
+    val formatted = formatNumberFast(amount)
     return "৳ $formatted"
 }
 

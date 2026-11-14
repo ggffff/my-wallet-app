@@ -1,6 +1,8 @@
 package com.example.ui.ads
 
+import android.content.Context
 import android.util.Log
+import android.view.ViewGroup
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +16,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,8 +39,121 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
+import java.util.concurrent.atomic.AtomicReference
 
 private const val TAG = "AdMobBanner"
+
+/**
+ * Shared controller that caches a single [AdView] across tab switches in [MainWalletApp]
+ * so returning to the Home Screen does not tear down Chromium or send duplicate ad requests.
+ */
+@Stable
+class AdMobBannerController(
+    private val context: Context,
+    private val adUnitId: String
+) {
+    internal var adView: AdView? = null
+    internal var cachedWidthDp: Int = -1
+    var isAdLoaded by mutableStateOf(false)
+        internal set
+
+    internal fun getOrCreateAdView(adSize: AdSize, widthDp: Int): AdView {
+        val existing = adView
+        if (existing != null && cachedWidthDp == widthDp) {
+            (existing.parent as? ViewGroup)?.removeView(existing)
+            return existing
+        }
+        existing?.let { old ->
+            try {
+                (old.parent as? ViewGroup)?.removeView(old)
+                old.destroy()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Error destroying previous AdView", t)
+            }
+        }
+        isAdLoaded = false
+        cachedWidthDp = widthDp
+        return AdView(context).apply {
+            setAdSize(adSize)
+            this.adUnitId = this@AdMobBannerController.adUnitId
+            adListener = object : AdListener() {
+                override fun onAdLoaded() {
+                    super.onAdLoaded()
+                    Log.d(TAG, "AdMob Banner successfully loaded")
+                    isAdLoaded = true
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    super.onAdFailedToLoad(loadAdError)
+                    Log.w(
+                        TAG,
+                        "AdMob Banner failed to load: code=${loadAdError.code}, message=${loadAdError.message}"
+                    )
+                    isAdLoaded = false
+                }
+            }
+            loadAd(AdRequest.Builder().build())
+        }.also { adView = it }
+    }
+
+    fun resume() {
+        try {
+            adView?.resume()
+        } catch (t: Throwable) {
+            Log.w(TAG, "AdView resume error", t)
+        }
+    }
+
+    fun pause() {
+        try {
+            adView?.pause()
+        } catch (t: Throwable) {
+            Log.w(TAG, "AdView pause error", t)
+        }
+    }
+
+    fun destroy() {
+        try {
+            (adView?.parent as? ViewGroup)?.removeView(adView)
+            adView?.destroy()
+        } catch (t: Throwable) {
+            Log.w(TAG, "AdView destroy error", t)
+        }
+        adView = null
+        cachedWidthDp = -1
+        isAdLoaded = false
+    }
+}
+
+@Composable
+fun rememberAdMobBannerController(): AdMobBannerController {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val configuredAdUnitId = remember(context) {
+        AdMobConfig.resolveBannerAdUnitId(context)
+    }
+    val controller = remember(context, configuredAdUnitId) {
+        AdMobBannerController(context.applicationContext, configuredAdUnitId)
+    }
+
+    DisposableEffect(lifecycleOwner, controller) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> controller.resume()
+                Lifecycle.Event.ON_PAUSE -> controller.pause()
+                Lifecycle.Event.ON_DESTROY -> controller.destroy()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            controller.destroy()
+        }
+    }
+
+    return controller
+}
 
 /**
  * Anchored Adaptive Banner Ad for Google AdMob.
@@ -51,59 +167,63 @@ private const val TAG = "AdMobBanner"
  */
 @Composable
 fun AdMobBanner(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    bannerController: AdMobBannerController? = null
 ) {
     val context = LocalContext.current
     val isDark = LocalAppTheme.current.isDark
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Read configured banner unit id from AdMobConfig (official Google test banner ID)
+    // Read configured banner unit id from AdMobConfig
     val configuredAdUnitId = remember(context) {
         AdMobConfig.resolveBannerAdUnitId(context)
     }
 
-    var isAdLoaded by remember { mutableStateOf(false) }
-    var adViewInstance by remember { mutableStateOf<AdView?>(null) }
+    var localIsAdLoaded by remember { mutableStateOf(false) }
+    val localAdViewRef = remember { AtomicReference<AdView?>(null) }
 
-    // Tie AdView lifecycle to Android Composable lifecycle
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    try {
-                        adViewInstance?.resume()
-                    } catch (t: Throwable) {
-                        Log.w(TAG, "AdView resume error", t)
+    if (bannerController == null) {
+        // Standalone lifecycle management when used without a hoisted controller
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> {
+                        try {
+                            localAdViewRef.get()?.resume()
+                        } catch (t: Throwable) {
+                            Log.w(TAG, "AdView resume error", t)
+                        }
                     }
-                }
-                Lifecycle.Event.ON_PAUSE -> {
-                    try {
-                        adViewInstance?.pause()
-                    } catch (t: Throwable) {
-                        Log.w(TAG, "AdView pause error", t)
+                    Lifecycle.Event.ON_PAUSE -> {
+                        try {
+                            localAdViewRef.get()?.pause()
+                        } catch (t: Throwable) {
+                            Log.w(TAG, "AdView pause error", t)
+                        }
                     }
-                }
-                Lifecycle.Event.ON_DESTROY -> {
-                    try {
-                        adViewInstance?.destroy()
-                    } catch (t: Throwable) {
-                        Log.w(TAG, "AdView destroy error", t)
+                    Lifecycle.Event.ON_DESTROY -> {
+                        try {
+                            localAdViewRef.get()?.destroy()
+                        } catch (t: Throwable) {
+                            Log.w(TAG, "AdView destroy error", t)
+                        }
                     }
+                    else -> Unit
                 }
-                else -> Unit
             }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            try {
-                adViewInstance?.destroy()
-            } catch (t: Throwable) {
-                Log.w(TAG, "AdView destroy onDispose error", t)
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+                try {
+                    localAdViewRef.getAndSet(null)?.destroy()
+                } catch (t: Throwable) {
+                    Log.w(TAG, "AdView destroy onDispose error", t)
+                }
             }
-            adViewInstance = null
         }
     }
+
+    val isAdLoaded = bannerController?.isAdLoaded ?: localIsAdLoaded
 
     BoxWithConstraints(
         modifier = modifier.fillMaxWidth(),
@@ -156,28 +276,37 @@ fun AdMobBanner(
                     .align(Alignment.CenterHorizontally)
                     .padding(bottom = if (isAdLoaded) 6.dp else 0.dp),
                 factory = { ctx ->
-                    AdView(ctx).apply {
-                        setAdSize(adSize)
-                        adUnitId = configuredAdUnitId
-                        adListener = object : AdListener() {
-                            override fun onAdLoaded() {
-                                super.onAdLoaded()
-                                Log.d(TAG, "AdMob Banner successfully loaded")
-                                isAdLoaded = true
-                            }
+                    if (bannerController != null) {
+                        bannerController.getOrCreateAdView(adSize, adWidthDp)
+                    } else {
+                        AdView(ctx).apply {
+                            setAdSize(adSize)
+                            adUnitId = configuredAdUnitId
+                            adListener = object : AdListener() {
+                                override fun onAdLoaded() {
+                                    super.onAdLoaded()
+                                    Log.d(TAG, "AdMob Banner successfully loaded")
+                                    localIsAdLoaded = true
+                                }
 
-                            override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                                super.onAdFailedToLoad(loadAdError)
-                                Log.w(
-                                    TAG,
-                                    "AdMob Banner failed to load: code=${loadAdError.code}, message=${loadAdError.message}"
-                                )
-                                isAdLoaded = false
+                                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                                    super.onAdFailedToLoad(loadAdError)
+                                    Log.w(
+                                        TAG,
+                                        "AdMob Banner failed to load: code=${loadAdError.code}, message=${loadAdError.message}"
+                                    )
+                                    localIsAdLoaded = false
+                                }
                             }
+                            localAdViewRef.set(this)
+                            // Asynchronously request ad without passing financial or user data
+                            loadAd(AdRequest.Builder().build())
                         }
-                        adViewInstance = this
-                        // Asynchronously request ad without passing financial or user data
-                        loadAd(AdRequest.Builder().build())
+                    }
+                },
+                onRelease = { view ->
+                    if (bannerController != null) {
+                        (view.parent as? ViewGroup)?.removeView(view)
                     }
                 }
             )

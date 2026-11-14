@@ -115,6 +115,7 @@ fun ChatBotScreen(
             )
 
             val accumulated = StringBuilder()
+            var lastUiUpdateMs = 0L
             try {
                 aiRepository.sendChatMessage(
                     userMessage = query,
@@ -122,10 +123,18 @@ fun ChatBotScreen(
                     contextSummary = contextSummary
                 ).collect { chunk ->
                     accumulated.append(chunk)
-                    val index = messages.indexOfFirst { it.id == assistantMsgId }
-                    if (index != -1) {
-                        messages[index] = assistantMsg.copy(text = accumulated.toString())
+                    val now = android.os.SystemClock.uptimeMillis()
+                    if (now - lastUiUpdateMs >= 50L) {
+                        val index = messages.indexOfFirst { it.id == assistantMsgId }
+                        if (index != -1) {
+                            messages[index] = assistantMsg.copy(text = accumulated.toString())
+                        }
+                        lastUiUpdateMs = now
                     }
+                }
+                val finalIndex = messages.indexOfFirst { it.id == assistantMsgId }
+                if (finalIndex != -1 && accumulated.isNotEmpty()) {
+                    messages[finalIndex] = assistantMsg.copy(text = accumulated.toString())
                 }
             } finally {
                 isGenerating = false
@@ -205,7 +214,7 @@ fun ChatBotScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(quickQuestions) { q ->
+            items(quickQuestions, key = { it }) { q ->
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
