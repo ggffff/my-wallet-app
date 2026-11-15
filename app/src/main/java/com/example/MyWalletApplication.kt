@@ -2,6 +2,7 @@ package com.example
 
 import android.app.Application
 import android.util.Log
+import com.example.ui.ads.AdMobConfig
 import com.google.android.gms.ads.MobileAds
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
@@ -19,6 +20,10 @@ class MyWalletApplication : Application() {
     }
 
     private fun initAdMobSafely() {
+        if (!AdMobConfig.ADS_ENABLED) {
+            Log.d(TAG, "AdMob is disabled (ADS_ENABLED=false); skipping MobileAds.initialize")
+            return
+        }
         if (!adMobInitStarted.compareAndSet(false, true)) {
             Log.d(TAG, "AdMob MobileAds initialization already triggered; skipping duplicate call")
             return

@@ -95,8 +95,10 @@ fun ChatBotScreen(
     val netBalance = remember(accounts) { accounts.sumOf { it.balance } }
 
     fun sendPrompt(query: String) {
-        if (query.isBlank() || isGenerating) return
-        val userMsg = ChatMessage(text = query.trim(), isUser = true)
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isBlank() || isGenerating) return
+        val priorHistory = messages.toList()
+        val userMsg = ChatMessage(text = trimmedQuery, isUser = true)
         messages.add(userMsg)
         inputText = ""
         isGenerating = true
@@ -118,8 +120,8 @@ fun ChatBotScreen(
             var lastUiUpdateMs = 0L
             try {
                 aiRepository.sendChatMessage(
-                    userMessage = query,
-                    history = messages.filter { it.id != assistantMsgId },
+                    userMessage = trimmedQuery,
+                    history = priorHistory,
                     contextSummary = contextSummary
                 ).collect { chunk ->
                     accumulated.append(chunk)
@@ -133,8 +135,20 @@ fun ChatBotScreen(
                     }
                 }
                 val finalIndex = messages.indexOfFirst { it.id == assistantMsgId }
-                if (finalIndex != -1 && accumulated.isNotEmpty()) {
-                    messages[finalIndex] = assistantMsg.copy(text = accumulated.toString())
+                if (finalIndex != -1) {
+                    val finalText = accumulated.toString().ifBlank {
+                        "Unable to reach AI Advisor right now. Please check your internet connection or API configuration."
+                    }
+                    messages[finalIndex] = assistantMsg.copy(text = finalText)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val finalIndex = messages.indexOfFirst { it.id == assistantMsgId }
+                if (finalIndex != -1) {
+                    messages[finalIndex] = assistantMsg.copy(
+                        text = e.localizedMessage ?: "AI Advisor encountered an unexpected error."
+                    )
                 }
             } finally {
                 isGenerating = false

@@ -160,7 +160,7 @@ fun AccountsScreen(
             contentPadding = PaddingValues(bottom = 90.dp)
         ) {
             // Header
-            item {
+            item(key = "accounts_header") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -196,12 +196,16 @@ fun AccountsScreen(
             }
 
             // Total Liquidity Card with Adaptive Theme Gradient
-            item {
+            item(key = "accounts_liquidity_card") {
                 val isDark = LocalAppTheme.current.isDark
-                val liquidityGradient = if (isDark) {
-                    listOf(DarkNavy, Color(0xFF142443), Color(0xFF1E365E))
-                } else {
-                    listOf(Color(0xFF1E40AF), Color(0xFF2563EB), Color(0xFF3B82F6))
+                val liquidityBrush = remember(isDark) {
+                    Brush.linearGradient(
+                        if (isDark) {
+                            listOf(DarkNavy, Color(0xFF142443), Color(0xFF1E365E))
+                        } else {
+                            listOf(Color(0xFF1E40AF), Color(0xFF2563EB), Color(0xFF3B82F6))
+                        }
+                    )
                 }
 
                 Box(
@@ -219,7 +223,7 @@ fun AccountsScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Brush.linearGradient(liquidityGradient))
+                                .background(liquidityBrush)
                                 .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(22.dp))
                                 .padding(20.dp)
                         ) {
@@ -278,7 +282,7 @@ fun AccountsScreen(
             }
 
             // Account Type Filter Chips: All, Bank, MFS, Cash Flow
-            item {
+            item(key = "accounts_filter_chips") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -322,7 +326,7 @@ fun AccountsScreen(
             }
 
             // 3D Animated Cards Carousel
-            item {
+            item(key = "accounts_carousel_title") {
                 Text(
                     text = "Interactive 3D Cards",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -334,7 +338,7 @@ fun AccountsScreen(
             }
 
             if (filteredAccounts.isEmpty()) {
-                item {
+                item(key = "accounts_empty_state") {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -380,7 +384,7 @@ fun AccountsScreen(
                     }
                 }
             } else {
-                item {
+                item(key = "accounts_carousel_row") {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -396,7 +400,7 @@ fun AccountsScreen(
                         }
 
                         // Add new card placeholder
-                        item {
+                        item(key = "accounts_add_card") {
                             AddAccountActionCard(onClick = onAddAccountClicked)
                         }
                     }
@@ -404,7 +408,7 @@ fun AccountsScreen(
             }
 
             // Detailed Accounts List
-            item {
+            item(key = "accounts_manage_header") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -643,15 +647,18 @@ fun Modern3DAccountCard(
         else -> account.type
     }
 
-    val gradientColors = when (account.type) {
-        AccountType.BKASH.name -> listOf(ColorBkash, Color(0xFFC00C58), Color(0xFF8B073E))
-        AccountType.NAGAD.name -> listOf(ColorNagad, Color(0xFFEA580C), Color(0xFFC2410C))
-        AccountType.ROCKET.name -> listOf(ColorRocket, Color(0xFF6B21A8), Color(0xFF581C87))
-        AccountType.MFS.name -> listOf(PremiumPink, Color(0xFFDB2777), Color(0xFFBE185D))
-        AccountType.BANK.name -> listOf(PremiumBlue, Color(0xFF2563EB), Color(0xFF1D4ED8))
-        AccountType.CASH_FLOW.name, AccountType.CASH.name -> listOf(ColorCash, Color(0xFF059669), Color(0xFF047857))
-        else -> listOf(PremiumBlue, PremiumPink, Color(0xFF9333EA))
+    val gradientColors = remember(account.type) {
+        when (account.type) {
+            AccountType.BKASH.name -> listOf(ColorBkash, Color(0xFFC00C58), Color(0xFF8B073E))
+            AccountType.NAGAD.name -> listOf(ColorNagad, Color(0xFFEA580C), Color(0xFFC2410C))
+            AccountType.ROCKET.name -> listOf(ColorRocket, Color(0xFF6B21A8), Color(0xFF581C87))
+            AccountType.MFS.name -> listOf(PremiumPink, Color(0xFFDB2777), Color(0xFFBE185D))
+            AccountType.BANK.name -> listOf(PremiumBlue, Color(0xFF2563EB), Color(0xFF1D4ED8))
+            AccountType.CASH_FLOW.name, AccountType.CASH.name -> listOf(ColorCash, Color(0xFF059669), Color(0xFF047857))
+            else -> listOf(PremiumBlue, PremiumPink, Color(0xFF9333EA))
+        }
     }
+    val cardBrush = remember(gradientColors) { Brush.linearGradient(gradientColors) }
 
     Card(
         modifier = Modifier
@@ -667,7 +674,7 @@ fun Modern3DAccountCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Brush.linearGradient(gradientColors))
+                .background(cardBrush)
                 .padding(18.dp)
         ) {
             // Metallic specular sheen overlay

@@ -301,7 +301,7 @@ fun StatementsScreen(
                             onDelete = { txnToDelete = txn }
                         )
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                    item(key = "statements_bottom_spacer") { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
         }

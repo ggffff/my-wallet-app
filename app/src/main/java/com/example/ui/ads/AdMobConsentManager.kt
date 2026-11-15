@@ -13,6 +13,7 @@ object AdMobConsentManager {
      * Complies with Google AdMob consent policies and EU User Consent Policy.
      */
     fun requestConsentIfRequired(activity: Activity, onConsentCompleted: () -> Unit = {}) {
+        if (!AdMobConfig.ADS_ENABLED) return
         try {
             val params = ConsentRequestParameters.Builder()
                 .setTagForUnderAgeOfConsent(false)

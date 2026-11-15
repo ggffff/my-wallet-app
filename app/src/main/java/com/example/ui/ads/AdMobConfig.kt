@@ -11,6 +11,12 @@ import com.example.R
  * and switches to the production Release AdMob IDs in Release builds.
  */
 object AdMobConfig {
+    /**
+     * Master runtime switch for all Google AdMob ads & UMP consent flows.
+     * Temporarily disabled to guarantee zero WebView/AdLoader/GMS overhead during scrolling.
+     */
+    const val ADS_ENABLED: Boolean = false
+
     const val OFFICIAL_TEST_APP_ID = "ca-app-pub-3940256099942544~3347511713"
     const val OFFICIAL_TEST_BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/9214589741"
     const val OFFICIAL_TEST_NATIVE_AD_UNIT_ID = "ca-app-pub-3940256099942544/2247696110"

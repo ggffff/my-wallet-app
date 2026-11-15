@@ -126,7 +126,8 @@ class AdMobBannerController(
 }
 
 @Composable
-fun rememberAdMobBannerController(): AdMobBannerController {
+fun rememberAdMobBannerController(): AdMobBannerController? {
+    if (!AdMobConfig.ADS_ENABLED) return null
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val configuredAdUnitId = remember(context) {
@@ -170,6 +171,7 @@ fun AdMobBanner(
     modifier: Modifier = Modifier,
     bannerController: AdMobBannerController? = null
 ) {
+    if (!AdMobConfig.ADS_ENABLED) return
     val context = LocalContext.current
     val isDark = LocalAppTheme.current.isDark
     val lifecycleOwner = LocalLifecycleOwner.current

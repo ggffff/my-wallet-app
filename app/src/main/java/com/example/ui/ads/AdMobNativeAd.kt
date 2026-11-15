@@ -55,6 +55,7 @@ private const val NATIVE_AD_TAG = "AdMobNativeAd"
  */
 @Composable
 fun rememberHomeNativeAd(): NativeAd? {
+    if (!AdMobConfig.ADS_ENABLED) return null
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val adUnitId = remember(context) { AdMobConfig.resolveNativeAdUnitId(context) }
@@ -141,7 +142,7 @@ fun AdMobNativeAdCard(
     nativeAd: NativeAd?,
     modifier: Modifier = Modifier
 ) {
-    if (nativeAd == null) return
+    if (!AdMobConfig.ADS_ENABLED || nativeAd == null) return
 
     val isDark = LocalAppTheme.current.isDark
 

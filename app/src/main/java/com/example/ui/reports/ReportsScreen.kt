@@ -118,7 +118,7 @@ fun ReportsScreen(
         contentPadding = PaddingValues(bottom = 90.dp)
     ) {
         // Header
-        item {
+        item(key = "reports_header") {
             Column(
                 modifier = Modifier
                     .padding(horizontal = 20.dp, vertical = 12.dp)
@@ -138,7 +138,7 @@ fun ReportsScreen(
         }
 
         // Summary Analytics Card with Ambient Glow & 3D Tilt
-        item {
+        item(key = "reports_net_cash_flow") {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -257,7 +257,7 @@ fun ReportsScreen(
         }
 
         // Native Compose Canvas Comparison Chart
-        item {
+        item(key = "reports_comparison_chart") {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -319,7 +319,7 @@ fun ReportsScreen(
         }
 
         // AI Financial Advisor Banner with bounce animation
-        item {
+        item(key = "reports_ai_advisor") {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -330,16 +330,20 @@ fun ReportsScreen(
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
                 val isDark = LocalAppTheme.current.isDark
-                val aiGradient = if (isDark) {
-                    listOf(Color(0xFF1E3A8A), Color(0xFF312E81))
-                } else {
-                    listOf(Color(0xFF1D4ED8), Color(0xFF2563EB))
+                val aiBrush = remember(isDark) {
+                    Brush.linearGradient(
+                        if (isDark) {
+                            listOf(Color(0xFF1E3A8A), Color(0xFF312E81))
+                        } else {
+                            listOf(Color(0xFF1D4ED8), Color(0xFF2563EB))
+                        }
+                    )
                 }
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Brush.linearGradient(aiGradient), RoundedCornerShape(20.dp))
+                        .background(aiBrush, RoundedCornerShape(20.dp))
                         .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(20.dp))
                         .padding(18.dp)
                 ) {
@@ -381,7 +385,7 @@ fun ReportsScreen(
         }
 
         // Spending by Category
-        item {
+        item(key = "reports_category_header") {
             Text(
                 text = "Expense Distribution by Category",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -393,7 +397,7 @@ fun ReportsScreen(
         }
 
         if (categoryBreakdown.isEmpty()) {
-            item {
+            item(key = "reports_category_empty") {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -503,6 +507,12 @@ fun NativeCashFlowBarChart(
     }
 
     val maxVal = max(income, expense).coerceAtLeast(1f)
+    val incomeBrush = remember {
+        Brush.verticalGradient(colors = listOf(PremiumBlue, Color(0xFF60A5FA)))
+    }
+    val expenseBrush = remember {
+        Brush.verticalGradient(colors = listOf(PremiumPink, Color(0xFFF472B6)))
+    }
 
     Canvas(modifier = modifier) {
         val width = size.width
@@ -525,9 +535,7 @@ fun NativeCashFlowBarChart(
         val incomeHeight = (height * (income / maxVal) * 0.85f) * animProgress.value
         val incomeX = width * 0.2f
         drawRoundRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(PremiumBlue, Color(0xFF60A5FA))
-            ),
+            brush = incomeBrush,
             topLeft = Offset(incomeX, height - incomeHeight),
             size = Size(barWidth, incomeHeight),
             cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())
@@ -537,9 +545,7 @@ fun NativeCashFlowBarChart(
         val expenseHeight = (height * (expense / maxVal) * 0.85f) * animProgress.value
         val expenseX = width * 0.55f
         drawRoundRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(PremiumPink, Color(0xFFF472B6))
-            ),
+            brush = expenseBrush,
             topLeft = Offset(expenseX, height - expenseHeight),
             size = Size(barWidth, expenseHeight),
             cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())

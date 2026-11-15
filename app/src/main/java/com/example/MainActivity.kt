@@ -179,11 +179,13 @@ class MainActivity : ComponentActivity() {
             Log.w("MainActivity", "enableEdgeToEdge error", t)
         }
 
-        // Initialize AdMob User Messaging Platform (UMP) consent
-        try {
-            com.example.ui.ads.AdMobConsentManager.requestConsentIfRequired(this)
-        } catch (t: Throwable) {
-            Log.w("MainActivity", "AdMob consent request error", t)
+        // Initialize AdMob User Messaging Platform (UMP) consent only when ads are enabled
+        if (com.example.ui.ads.AdMobConfig.ADS_ENABLED) {
+            try {
+                com.example.ui.ads.AdMobConsentManager.requestConsentIfRequired(this)
+            } catch (t: Throwable) {
+                Log.w("MainActivity", "AdMob consent request error", t)
+            }
         }
 
         setContent {
@@ -201,7 +203,7 @@ class MainActivity : ComponentActivity() {
             }
             var currentTheme by remember { mutableStateOf(AppTheme.fromId(savedThemeId)) }
             var isDarkTheme by remember { mutableStateOf(currentTheme.isDark) }
-            val savedLangCode = remember { prefs.getString("selected_language", AppLanguage.BANGLADESH.code) ?: AppLanguage.BANGLADESH.code }
+            val savedLangCode = remember { prefs.getString("selected_language", AppLanguage.ENGLISH.code) ?: AppLanguage.ENGLISH.code }
             var appLanguage by remember { mutableStateOf(AppLanguage.fromCode(savedLangCode)) }
             val savedCurrencyCode = remember { prefs.getString("selected_currency", AppCurrency.BDT.code) ?: AppCurrency.BDT.code }
             var appCurrency by remember { mutableStateOf(AppCurrency.fromCode(savedCurrencyCode)) }
@@ -359,23 +361,36 @@ fun MainWalletApp(
         }
     }
 
-    val onSelectThemeAndPersist: (AppTheme) -> Unit = { theme ->
-        onSelectTheme(theme)
-        prefs.edit().putString("selected_theme", theme.id).apply()
-        coroutineScope.launch {
-            try {
-                val current = userProfile ?: UserProfile()
-                repository.saveUserProfile(current.copy(themeMode = theme.id))
-            } catch (t: Throwable) {
-                android.util.Log.w("MainActivity", "Failed to sync theme to Firestore", t)
+    val onSelectThemeAndPersist: (AppTheme) -> Unit = remember(prefs, coroutineScope, repository, onSelectTheme) {
+        { theme ->
+            onSelectTheme(theme)
+            prefs.edit().putString("selected_theme", theme.id).apply()
+            coroutineScope.launch {
+                try {
+                    val current = userProfile ?: UserProfile()
+                    repository.saveUserProfile(current.copy(themeMode = theme.id))
+                } catch (t: Throwable) {
+                    android.util.Log.w("MainActivity", "Failed to sync theme to Firestore", t)
+                }
             }
         }
     }
 
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
     val saveableStateHolder = rememberSaveableStateHolder()
-    val homeNativeAd = rememberHomeNativeAd()
-    val bannerController = rememberAdMobBannerController()
+    val homeNativeAd = if (com.example.ui.ads.AdMobConfig.ADS_ENABLED) rememberHomeNativeAd() else null
+    val bannerController = if (com.example.ui.ads.AdMobConfig.ADS_ENABLED) rememberAdMobBannerController() else null
+
+    val onNavigateHome = remember { { currentScreen = Screen.HOME } }
+    val onNavigateAccounts = remember { { currentScreen = Screen.ACCOUNTS } }
+    val onNavigateReports = remember { { currentScreen = Screen.REPORTS } }
+    val onNavigateSettings = remember { { currentScreen = Screen.SETTINGS } }
+    val onNavigateTransactions = remember { { currentScreen = Screen.TRANSACTIONS } }
+    val onNavigateGoals = remember { { currentScreen = Screen.GOALS } }
+    val onNavigateBills = remember { { currentScreen = Screen.BILLS } }
+    val onNavigateDebts = remember { { currentScreen = Screen.DEBTS } }
+    val onNavigateHabits = remember { { currentScreen = Screen.HABITS } }
+    val onNavigateChatbot = remember { { currentScreen = Screen.CHATBOT } }
 
     // Dialog states
     var showAddAccountDialog by remember { mutableStateOf(false) }
@@ -449,6 +464,19 @@ fun MainWalletApp(
         },
         bottomBar = {
             if (!isSubScreen) {
+                val navBorderBrush = remember(isDarkTheme) {
+                    Brush.linearGradient(
+                        if (isDarkTheme) listOf(
+                            Color(0xFF38BDF8).copy(alpha = 0.5f),
+                            Color(0xFF1E293B).copy(alpha = 0.3f),
+                            Color(0xFF0052FE).copy(alpha = 0.5f)
+                        ) else listOf(
+                            Color.White,
+                            Color(0xFFBFDBFE),
+                            Color(0xFF93C5FD)
+                        )
+                    )
+                }
                 // Ultra-Premium Floating Glassmorphic Pill Island Navigation
                 Box(
                     modifier = Modifier
@@ -462,17 +490,7 @@ fun MainWalletApp(
                             .fillMaxWidth()
                             .border(
                                 width = 1.2.dp,
-                                brush = Brush.linearGradient(
-                                    if (isDarkTheme) listOf(
-                                        Color(0xFF38BDF8).copy(alpha = 0.5f),
-                                        Color(0xFF1E293B).copy(alpha = 0.3f),
-                                        Color(0xFF0052FE).copy(alpha = 0.5f)
-                                    ) else listOf(
-                                        Color.White,
-                                        Color(0xFFBFDBFE),
-                                        Color(0xFF93C5FD)
-                                    )
-                                ),
+                                brush = navBorderBrush,
                                 shape = RoundedCornerShape(28.dp)
                             )
                             .testTag("bottom_navigation_bar"),
@@ -491,7 +509,7 @@ fun MainWalletApp(
                             // 1. Home
                             PremiumBottomNavItem(
                                 selected = currentScreen == Screen.HOME,
-                                onClick = { currentScreen = Screen.HOME },
+                                onClick = onNavigateHome,
                                 icon = Icons.Default.AccountBalanceWallet,
                                 label = appString(StringKeys.HOME)
                             )
@@ -499,7 +517,7 @@ fun MainWalletApp(
                             // 2. Accounts
                             PremiumBottomNavItem(
                                 selected = currentScreen == Screen.ACCOUNTS,
-                                onClick = { currentScreen = Screen.ACCOUNTS },
+                                onClick = onNavigateAccounts,
                                 icon = Icons.Default.CreditCard,
                                 label = appString(StringKeys.ACCOUNTS)
                             )
@@ -507,7 +525,7 @@ fun MainWalletApp(
                             // 3. Reports
                             PremiumBottomNavItem(
                                 selected = currentScreen == Screen.REPORTS,
-                                onClick = { currentScreen = Screen.REPORTS },
+                                onClick = onNavigateReports,
                                 icon = Icons.Default.BarChart,
                                 label = appString(StringKeys.REPORTS)
                             )
@@ -515,7 +533,7 @@ fun MainWalletApp(
                             // 4. Settings
                             PremiumBottomNavItem(
                                 selected = currentScreen == Screen.SETTINGS,
-                                onClick = { currentScreen = Screen.SETTINGS },
+                                onClick = onNavigateSettings,
                                 icon = Icons.Default.Settings,
                                 label = appString(StringKeys.SETTINGS)
                             )
@@ -593,13 +611,13 @@ fun MainWalletApp(
                             transactionDialogType = type
                             showAddTransactionDialog = true
                         },
-                        onViewAllStatementsClicked = { currentScreen = Screen.TRANSACTIONS },
-                        onViewBillsClicked = { currentScreen = Screen.BILLS },
-                        onViewGoalsClicked = { currentScreen = Screen.GOALS },
-                        onViewDebtsClicked = { currentScreen = Screen.DEBTS },
-                        onViewHabitsClicked = { currentScreen = Screen.HABITS },
-                        onOpenAiAdvisor = { currentScreen = Screen.CHATBOT },
-                        onOpenSettings = { currentScreen = Screen.SETTINGS },
+                        onViewAllStatementsClicked = onNavigateTransactions,
+                        onViewBillsClicked = onNavigateBills,
+                        onViewGoalsClicked = onNavigateGoals,
+                        onViewDebtsClicked = onNavigateDebts,
+                        onViewHabitsClicked = onNavigateHabits,
+                        onOpenAiAdvisor = onNavigateChatbot,
+                        onOpenSettings = onNavigateSettings,
                         onToggleLanguage = onToggleLanguage,
                         currentCurrency = currentCurrency,
                         onSelectCurrency = onSelectCurrency
@@ -632,7 +650,7 @@ fun MainWalletApp(
                     )
                     Screen.REPORTS -> ReportsScreen(
                         transactions = transactions,
-                        onOpenAiAdvisor = { currentScreen = Screen.CHATBOT }
+                        onOpenAiAdvisor = onNavigateChatbot
                     )
                     Screen.SETTINGS -> SettingsScreen(
                         userProfile = userProfile,
@@ -659,10 +677,10 @@ fun MainWalletApp(
                             }
                         },
                         onSignOut = onSignOut,
-                        onOpenGoals = { currentScreen = Screen.GOALS },
-                        onOpenBills = { currentScreen = Screen.BILLS },
-                        onOpenDebts = { currentScreen = Screen.DEBTS },
-                        onOpenHabits = { currentScreen = Screen.HABITS },
+                        onOpenGoals = onNavigateGoals,
+                        onOpenBills = onNavigateBills,
+                        onOpenDebts = onNavigateDebts,
+                        onOpenHabits = onNavigateHabits,
                         onLinkPhoneNumber = { phone ->
                             coroutineScope.launch {
                                 try {
@@ -889,10 +907,12 @@ private fun androidx.compose.foundation.layout.RowScope.PremiumBottomNavItem(
         label = "navScale"
     )
 
-    val activeGradient = if (isDark) {
-        Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0284C7), Color(0xFF00E5FF)))
-    } else {
-        Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0284C7)))
+    val activeGradient = remember(isDark) {
+        if (isDark) {
+            Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0284C7), Color(0xFF00E5FF)))
+        } else {
+            Brush.horizontalGradient(listOf(Color(0xFF0052FE), Color(0xFF0284C7)))
+        }
     }
 
     Box(

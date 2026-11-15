@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import android.util.Log
+import com.example.BuildConfig
 import com.example.data.model.Account
 import com.example.data.model.Bill
 import com.example.data.model.Goal
@@ -9,10 +10,19 @@ import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.content
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 data class ChatMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
@@ -21,23 +31,121 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-class AiChatRepository {
+class AiChatRepository(
+    private val apiKeyProvider: () -> String = { BuildConfig.GEMINI_API_KEY }
+) {
+
+    companion object {
+        private const val TAG = "AiChatRepository"
+        internal const val PLACEHOLDER_GEMINI_API_KEY = "MY_GEMINI_API_KEY"
+        private const val GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+        private val REST_MODELS = listOf(
+            "gemini-3.8-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3-flash-preview"
+        )
+        private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+
+        private val SYSTEM_PROMPT = """
+            You are 'My Wallet AI Advisor', an empathetic, smart personal finance and money management assistant specialized in Bangladeshi personal finances (Currency: BDT / ৳).
+            You assist the user with:
+            1. Analyzing their income and expenditures (Job salary, Pathao Drive, Tips, Business, Food, Family, Rental cost, etc.).
+            2. Giving practical savings advice in Bangladesh (bKash, Nagad, Rocket, Bank deposits, inflation tips).
+            3. Tracking budget, upcoming bills reminders, and savings goals.
+            4. Answering questions concisely and accurately in both English and Bengali (বাংলা) depending on what language the user speaks.
+            Be polite, proactive, structured with bullet points where appropriate, and encourage disciplined saving habits.
+        """.trimIndent()
+
+        private val sharedHttpClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
+        }
+
+        internal fun isGeminiApiKeyConfigured(apiKey: String?): Boolean {
+            val trimmed = apiKey?.trim().orEmpty()
+            return trimmed.isNotEmpty() && trimmed != PLACEHOLDER_GEMINI_API_KEY
+        }
+
+        /**
+         * Ensures Gemini conversation history always starts with a 'user' turn,
+         * alternates strictly user -> model, and ends with a 'model' turn so the
+         * caller can safely append the next 'user' prompt.
+         */
+        internal fun sanitizeHistory(history: List<ChatMessage>): List<ChatMessage> {
+            val filtered = history
+                .filter { it.text.isNotBlank() && it.text != "Thinking..." }
+                .dropWhile { !it.isUser }
+
+            val alternating = mutableListOf<ChatMessage>()
+            for (msg in filtered) {
+                val last = alternating.lastOrNull()
+                if (last == null || last.isUser != msg.isUser) {
+                    alternating.add(msg)
+                } else {
+                    alternating[alternating.lastIndex] = msg
+                }
+            }
+            if (alternating.lastOrNull()?.isUser == true) {
+                alternating.removeAt(alternating.lastIndex)
+            }
+            return alternating.takeLast(10)
+        }
+
+        internal fun buildRestRequestJson(
+            promptWithContext: String,
+            history: List<ChatMessage>
+        ): String {
+            val contents = JSONArray()
+            sanitizeHistory(history).forEach { msg ->
+                val part = JSONObject().put("text", msg.text)
+                val turn = JSONObject()
+                    .put("role", if (msg.isUser) "user" else "model")
+                    .put("parts", JSONArray().put(part))
+                contents.put(turn)
+            }
+            contents.put(
+                JSONObject()
+                    .put("role", "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", promptWithContext)))
+            )
+
+            val systemInstruction = JSONObject()
+                .put("parts", JSONArray().put(JSONObject().put("text", SYSTEM_PROMPT)))
+
+            return JSONObject()
+                .put("system_instruction", systemInstruction)
+                .put("contents", contents)
+                .toString()
+        }
+
+        internal fun extractTextFromGeminiJson(rawJson: String): String? {
+            if (rawJson.isBlank()) return null
+            val root = JSONObject(rawJson)
+            val candidates = root.optJSONArray("candidates") ?: return null
+            if (candidates.length() == 0) return null
+            val firstCandidate = candidates.optJSONObject(0) ?: return null
+            val contentObj = firstCandidate.optJSONObject("content") ?: return null
+            val parts = contentObj.optJSONArray("parts") ?: return null
+            val builder = StringBuilder()
+            for (i in 0 until parts.length()) {
+                val part = parts.optJSONObject(i) ?: continue
+                val text = part.optString("text", "")
+                if (text.isNotEmpty()) {
+                    builder.append(text)
+                }
+            }
+            return builder.toString().takeIf { it.isNotBlank() }
+        }
+    }
 
     private val generativeModel by lazy {
         Firebase.ai.generativeModel(
             modelName = "gemini-3.8-flash",
             systemInstruction = content {
-                text(
-                    """
-                    You are 'My Wallet AI Advisor', an empathetic, smart personal finance and money management assistant specialized in Bangladeshi personal finances (Currency: BDT / ৳).
-                    You assist the user with:
-                    1. Analyzing their income and expenditures (Job salary, Pathao Drive, Tips, Business, Food, Family, Rental cost, etc.).
-                    2. Giving practical savings advice in Bangladesh (bKash, Nagad, Rocket, Bank deposits, inflation tips).
-                    3. Tracking budget, upcoming bills reminders, and savings goals.
-                    4. Answering questions concisely and accurately in both English and Bengali (বাংলা) depending on what language the user speaks.
-                    Be polite, proactive, structured with bullet points where appropriate, and encourage disciplined saving habits.
-                    """.trimIndent()
-                )
+                text(SYSTEM_PROMPT)
             }
         )
     }
@@ -47,40 +155,117 @@ class AiChatRepository {
         history: List<ChatMessage>,
         contextSummary: String
     ): Flow<String> = flow {
+        val promptWithContext = if (contextSummary.isNotBlank()) {
+            "CURRENT FINANCIAL CONTEXT:\n$contextSummary\n\nUSER INQUIRY:\n$userMessage"
+        } else {
+            userMessage
+        }
+
+        val cleanHistory = sanitizeHistory(history)
+        var restFailureReason: String? = null
+        val configuredApiKey = runCatching { apiKeyProvider().trim() }.getOrDefault("")
+        if (isGeminiApiKeyConfigured(configuredApiKey)) {
+            val (restResult, restError) = trySendViaGeminiApiKey(
+                apiKey = configuredApiKey,
+                promptWithContext = promptWithContext,
+                history = cleanHistory
+            )
+            if (!restResult.isNullOrBlank()) {
+                emit(restResult)
+                return@flow
+            }
+            restFailureReason = restError
+        }
+
         try {
-            val contentHistory = history.takeLast(10).map { msg ->
+            val contentHistory = cleanHistory.map { msg ->
                 content(if (msg.isUser) "user" else "model") {
                     text(msg.text)
                 }
             }
 
             val chatSession = generativeModel.startChat(history = contentHistory)
-
-            val promptWithContext = if (contextSummary.isNotBlank()) {
-                "CURRENT FINANCIAL CONTEXT:\n$contextSummary\n\nUSER INQUIRY:\n$userMessage"
-            } else {
-                userMessage
-            }
+            var emittedAnyChunk = false
 
             withTimeout(60_000L) {
                 val stream = chatSession.sendMessageStream(promptWithContext)
                 stream.collect { chunk ->
                     val chunkText = chunk.text.orEmpty()
                     if (chunkText.isNotEmpty()) {
+                        emittedAnyChunk = true
                         emit(chunkText)
                     }
                 }
             }
+            if (!emittedAnyChunk) {
+                val diagnostic = restFailureReason ?: "Live AI returned an empty response."
+                emit("⚠️ $diagnostic\n\n" + generateSmartTips(userMessage, contextSummary))
+            }
         } catch (e: TimeoutCancellationException) {
-            Log.e("AiChatRepository", "Chat response timed out", e)
-            emit("অনুরোধের সময় শেষ হয়ে গেছে। আপনার ব্যালেন্স ও খরচের ভিত্তিতে নিচে টিপস দেওয়া হলো:\n\n" + generateSmartTips(userMessage, contextSummary))
+            Log.e(TAG, "Chat response timed out", e)
+            emit("⏱️ অনুরোধের সময় শেষ হয়ে গেছে। আপনার ব্যালেন্স ও খরচের ভিত্তিতে নিচে টিপস দেওয়া হলো:\n\n" + generateSmartTips(userMessage, contextSummary))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w("AiChatRepository", "AI generation service note: ${e.message}")
-            // Provide intelligent, context-accurate financial advice calculated from their live data
-            emit(generateSmartTips(userMessage, contextSummary))
+            Log.e(TAG, "AI generation failed: ${e.message}", e)
+            val reason = restFailureReason
+                ?: e.localizedMessage?.takeIf { it.isNotBlank() }
+                ?: "AI service unavailable."
+            emit("⚠️ Live AI unavailable ($reason)\n\n" + generateSmartTips(userMessage, contextSummary))
         }
+    }
+
+    private suspend fun trySendViaGeminiApiKey(
+        apiKey: String,
+        promptWithContext: String,
+        history: List<ChatMessage>
+    ): Pair<String?, String?> = withContext(Dispatchers.IO) {
+        val payloadJson = buildRestRequestJson(promptWithContext, history)
+        var lastError: String? = null
+        for (modelName in REST_MODELS) {
+            try {
+                val (responseText, errorMsg) = withTimeout(60_000L) {
+                    val request = Request.Builder()
+                        .url("$GEMINI_API_BASE_URL/$modelName:generateContent")
+                        .addHeader("x-goog-api-key", apiKey)
+                        .post(payloadJson.toRequestBody(JSON_MEDIA_TYPE))
+                        .build()
+
+                    sharedHttpClient.newCall(request).execute().use { response ->
+                        val bodyStr = response.body?.string().orEmpty()
+                        if (response.isSuccessful) {
+                            extractTextFromGeminiJson(bodyStr) to null
+                        } else {
+                            val apiMessage = runCatching {
+                                JSONObject(bodyStr).optJSONObject("error")?.optString("message")
+                            }.getOrNull().orEmpty()
+                            val summary = if (apiMessage.isNotBlank()) {
+                                "HTTP ${response.code}: $apiMessage"
+                            } else {
+                                "HTTP ${response.code}"
+                            }
+                            Log.w(TAG, "Gemini REST request ($modelName) failed: $summary")
+                            null to summary
+                        }
+                    }
+                }
+                if (!responseText.isNullOrBlank()) {
+                    return@withContext responseText to null
+                }
+                if (!errorMsg.isNullOrBlank()) {
+                    lastError = errorMsg
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.w(TAG, "Gemini REST request ($modelName) timed out", e)
+                lastError = "Request timed out"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Gemini REST request ($modelName) error: ${e.message}")
+                lastError = e.localizedMessage ?: "Network error"
+            }
+        }
+        null to lastError
     }
 
     private fun generateSmartTips(query: String, contextSummary: String): String {

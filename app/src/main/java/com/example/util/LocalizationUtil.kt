@@ -40,19 +40,20 @@ enum class AppLanguage(
         val BANGLA get() = BANGLADESH
 
         fun fromCode(code: String?): AppLanguage {
-            if (code == null) return BANGLADESH
+            if (code == null) return ENGLISH
             return entries.firstOrNull { it.code.equals(code, ignoreCase = true) }
-                ?: if (code.startsWith("en", ignoreCase = true)) UNITED_STATES
+                ?: if (code.startsWith("bn", ignoreCase = true)) BANGLADESH
+                else if (code.startsWith("en", ignoreCase = true)) UNITED_STATES
                 else if (code.startsWith("ar", ignoreCase = true)) UAE
                 else if (code.startsWith("de", ignoreCase = true)) GERMANY
                 else if (code.startsWith("fr", ignoreCase = true)) FRANCE
                 else if (code.startsWith("nl", ignoreCase = true)) NETHERLANDS
-                else BANGLADESH
+                else ENGLISH
         }
     }
 }
 
-val LocalAppLanguage = staticCompositionLocalOf { AppLanguage.BANGLADESH }
+val LocalAppLanguage = staticCompositionLocalOf { AppLanguage.ENGLISH }
 
 enum class AppCurrency(
     val code: String,

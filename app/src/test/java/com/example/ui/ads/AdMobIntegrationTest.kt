@@ -123,4 +123,12 @@ class AdMobIntegrationTest {
 
         nativeAdView.destroy()
     }
+
+    @Test
+    fun `verify runtime ads switch is disabled to prevent scrolling hang`() {
+        org.junit.Assert.assertFalse(
+            "AdMob runtime switch ADS_ENABLED must remain false while ads are turned off",
+            AdMobConfig.ADS_ENABLED
+        )
+    }
 }

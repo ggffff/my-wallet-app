@@ -52,12 +52,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.os.ConfigurationCompat
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.model.UserProfile
 import com.example.ui.motion.bounceClick
 import com.example.util.AppLanguage
@@ -328,8 +330,16 @@ fun TimeBasedGreetingHeader(
                 contentAlignment = Alignment.Center
             ) {
                 if (isCustomPhoto) {
+                    val context = LocalContext.current
+                    val avatarRequest = remember(photoUrl, context) {
+                        ImageRequest.Builder(context)
+                            .data(photoUrl)
+                            .size(128)
+                            .crossfade(false)
+                            .build()
+                    }
                     AsyncImage(
-                        model = photoUrl,
+                        model = avatarRequest,
                         contentDescription = "User Profile Picture",
                         modifier = Modifier
                             .fillMaxSize()

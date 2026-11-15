@@ -8,8 +8,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
+import com.example.data.repository.AiChatRepository
+import com.example.data.repository.ChatMessage
 import com.example.ui.auth.getWebClientId
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
@@ -35,6 +38,32 @@ class ExampleRobolectricTest {
   fun `verify AppSignatureHelper expected fingerprints`() {
     assertEquals("CE:C8:04:28:58:3D:82:05:D6:3A:9F:D0:55:DB:E2:0D:6C:E6:C1:D3", com.example.util.AppSignatureHelper.EXPECTED_SHA1)
     assertEquals("99:25:B4:22:AC:B6:F3:2D:20:36:DE:29:C0:DE:EC:6D:C8:97:CB:79:D3:6C:6A:7B:26:41:D4:6A:64:AC:0E:38", com.example.util.AppSignatureHelper.EXPECTED_SHA256)
+  }
+
+  @Test
+  fun `verify Gemini REST request JSON and candidate text extraction`() {
+    val requestJson = AiChatRepository.buildRestRequestJson(
+      promptWithContext = "How can I save?",
+      history = listOf(ChatMessage(text = "Hi", isUser = true))
+    )
+    assertTrue(requestJson.contains("system_instruction"))
+    assertTrue(requestJson.contains("How can I save?"))
+
+    val sampleResponse = """
+        {
+          "candidates": [
+            {
+              "content": {
+                "parts": [
+                  {"text": "Save 20% of monthly income."}
+                ]
+              }
+            }
+          ]
+        }
+    """.trimIndent()
+    assertEquals("Save 20% of monthly income.", AiChatRepository.extractTextFromGeminiJson(sampleResponse))
+    assertNull(AiChatRepository.extractTextFromGeminiJson("{}"))
   }
 }
 

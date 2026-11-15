@@ -154,6 +154,49 @@ fun HomeScreen(
 
     val recentTransactions = remember(transactions) { transactions.take(6) }
 
+    val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
+    val heroBrush = remember(isDark) {
+        if (isDark) {
+            Brush.linearGradient(
+                colors = listOf(
+                    Color(0xFF0052FE),
+                    Color(0xFF0284C7),
+                    Color(0xFF0A2268)
+                )
+            )
+        } else {
+            Brush.linearGradient(
+                colors = listOf(
+                    Color(0xFFFFFFFF),
+                    Color(0xFFF0F9FF),
+                    Color(0xFFE0F2FE)
+                )
+            )
+        }
+    }
+    val bellBrush = remember {
+        Brush.radialGradient(
+            colors = listOf(
+                Color(0xFFFDE68A),
+                Color(0xFFF59E0B),
+                Color(0xFFD97706)
+            )
+        )
+    }
+    val viewBtnBrush = remember(isDark) {
+        if (isDark) {
+            Brush.horizontalGradient(listOf(Color(0xFF0070F3), Color(0xFF0284C7)))
+        } else {
+            Brush.horizontalGradient(listOf(Color(0xFF0066FF), Color(0xFF0284C7)))
+        }
+    }
+    val debtsIconBrush = remember {
+        Brush.linearGradient(listOf(Color(0xFF059669), Color(0xFF10B981)))
+    }
+    val habitsIconBrush = remember {
+        Brush.linearGradient(listOf(Color(0xFF0070F3), Color(0xFF38BDF8)))
+    }
+
     val eyeRotation by animateFloatAsState(
         targetValue = if (isBalanceHidden) 180f else 0f,
         animationSpec = spring(),
@@ -181,8 +224,6 @@ fun HomeScreen(
 
             // 2. Large Net Balance Hero Card (Clean Modern Card strictly matching reference design)
             item(key = "home_balance_hero") {
-                val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
-
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -194,25 +235,7 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            brush = if (isDark) {
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF0052FE),
-                                        Color(0xFF0284C7),
-                                        Color(0xFF0A2268)
-                                    )
-                                )
-                            } else {
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFFFFFFFF),
-                                        Color(0xFFF0F9FF),
-                                        Color(0xFFE0F2FE)
-                                    )
-                                )
-                            }
-                        )
+                        .background(brush = heroBrush)
                         .border(
                             width = 1.5.dp,
                             color = if (isDark) Color(0xFF00D2FF).copy(alpha = 0.55f) else Color(0xFFBFDBFE),
@@ -470,7 +493,6 @@ fun HomeScreen(
         // 4. Bills & Dues (Calendar and Clock)
         // 5. AI Tips (AI Lightbulb)
         item(key = "home_quick_actions") {
-            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -527,7 +549,6 @@ fun HomeScreen(
 
         // 4. Upcoming Bill Card (Exact reference design)
         item(key = "home_upcoming_bill") {
-            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             val nextBill = upcomingBills.firstOrNull() ?: bills.firstOrNull { !it.isPaid }
             val billTitle = nextBill?.title ?: "Wifi Bill"
             val billAmount = nextBill?.amount ?: 450.0
@@ -579,15 +600,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            Color(0xFFFDE68A),
-                                            Color(0xFFF59E0B),
-                                            Color(0xFFD97706)
-                                        )
-                                    )
-                                )
+                                .background(bellBrush)
                                 .border(1.dp, Color(0xFFFEF08A), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -622,7 +635,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "${appString(StringKeys.AMOUNT)}: ${formatCurrency(billAmount, language)} • ${appString(StringKeys.DUE_DATE)}: $billDueDate",
+                                text = "${appString(StringKeys.AMOUNT)}: ${formatCurrency(billAmount, currentCurrency)} • ${appString(StringKeys.DUE_DATE)}: $billDueDate",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                 color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
                             )
@@ -632,17 +645,7 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(
-                                    if (isDark) {
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF0070F3), Color(0xFF0284C7))
-                                        )
-                                    } else {
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF0066FF), Color(0xFF0284C7))
-                                        )
-                                    }
-                                )
+                                .background(viewBtnBrush)
                                 .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
@@ -661,7 +664,6 @@ fun HomeScreen(
 
         // 4.5. Quick Utilities: Debts & Habits
         item(key = "home_debts_habits") {
-            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
             val activeDebts = remember(debts) { debts.filter { !it.isSettled } }
             val lentSum = remember(activeDebts) {
                 activeDebts.filter { it.type == "LENT" }.sumOf { (it.amount - it.repaidAmount).coerceAtLeast(0.0) }
@@ -703,11 +705,7 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFF059669), Color(0xFF10B981))
-                                        )
-                                    ),
+                                    .background(debtsIconBrush),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -734,7 +732,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = if (activeDebts.isNotEmpty()) {
-                                "${appString(StringKeys.TO_RECEIVE)} ${formatCurrency(lentSum, language)} • ${appString(StringKeys.TO_PAY)} ${formatCurrency(borrowSum, language)}"
+                                "${appString(StringKeys.TO_RECEIVE)} ${formatCurrency(lentSum, currentCurrency)} • ${appString(StringKeys.TO_PAY)} ${formatCurrency(borrowSum, currentCurrency)}"
                             } else {
                                 appString(StringKeys.NO_DEBTS)
                             },
@@ -770,11 +768,7 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFF0070F3), Color(0xFF38BDF8))
-                                        )
-                                    ),
+                                    .background(habitsIconBrush),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -816,8 +810,6 @@ fun HomeScreen(
 
         // 5. Accounts Section (Exact reference design)
         item(key = "home_accounts_header") {
-            val isDark = com.example.ui.theme.LocalAppTheme.current.isDark
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -956,7 +948,7 @@ fun HomeScreen(
                 else -> 0 // Between 1st & 2nd item (size == 2) or below 1st item (size == 1)
             }
             recentTransactions.forEachIndexed { index, txn ->
-                item(key = "home_txn_${index}_${txn.id}") {
+                item(key = "home_txn_${txn.id}") {
                     HomeTransactionRow(
                         txn = txn,
                         isHidden = isBalanceHidden,
@@ -964,7 +956,7 @@ fun HomeScreen(
                         modifier = Modifier.staggeredEntrance(index = 6 + index)
                     )
                 }
-                if (index == nativeAdInsertIndex && homeNativeAd != null) {
+                if (com.example.ui.ads.AdMobConfig.ADS_ENABLED && index == nativeAdInsertIndex && homeNativeAd != null) {
                     item(key = "home_native_ad") {
                         AdMobNativeAdCard(
                             nativeAd = homeNativeAd,
@@ -976,13 +968,15 @@ fun HomeScreen(
         }
         }
 
-        // 7. Google AdMob Anchored Adaptive Banner Ad (Pinned outside LazyColumn to prevent scroll WebView thrashing)
-        AdMobBanner(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
-            bannerController = bannerController
-        )
+        // 7. Google AdMob Anchored Adaptive Banner Ad (only composed when ADS_ENABLED == true)
+        if (com.example.ui.ads.AdMobConfig.ADS_ENABLED) {
+            AdMobBanner(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                bannerController = bannerController
+            )
+        }
     }
 
     // Direct Update Account / Balance Dialog from Home
@@ -1153,6 +1147,18 @@ fun QuickAction3DItem(
             .build()
     }
 
+    val glowBrush = remember(glowColor, isDark) {
+        Brush.radialGradient(
+            colors = if (isDark) listOf(
+                glowColor.copy(alpha = 0.32f),
+                Color.Transparent
+            ) else listOf(
+                glowColor.copy(alpha = 0.15f),
+                Color.Transparent
+            )
+        )
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -1168,17 +1174,7 @@ fun QuickAction3DItem(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = if (isDark) listOf(
-                                glowColor.copy(alpha = 0.32f),
-                                Color.Transparent
-                            ) else listOf(
-                                glowColor.copy(alpha = 0.15f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+                    .background(glowBrush)
             )
 
             // 3D Icon container:
