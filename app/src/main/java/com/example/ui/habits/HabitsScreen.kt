@@ -84,6 +84,31 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+private val HabitDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+    override fun initialValue(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+}
+
+private val HabitIconLinearBrush = Brush.linearGradient(listOf(Color(0xFF0070F3), Color(0xFF38BDF8)))
+private val HabitIconRadialBrush = Brush.radialGradient(listOf(Color(0xFF38BDF8), Color(0xFF0066FF)))
+private val HabitMarkDoneBrush = Brush.horizontalGradient(listOf(Color(0xFF059669), Color(0xFF10B981)))
+
+private val HabitPresets = listOf(
+    "রুটিন / Routine 🔄" to ("Routine" to 30),
+    "রুম ভাড়া / Rent 🏠" to ("Living" to 30),
+    "সার্ভিসিং / Service 🏍️" to ("Vehicle" to 60),
+    "জিম / Fitness 🏋️" to ("Health" to 30),
+    "বিল / Bills 📶" to ("Utilities" to 30)
+)
+
+private val HabitIntervalOptions = listOf(
+    "15 Days" to 15,
+    "1 Month (30d)" to 30,
+    "2 Months (60d)" to 60,
+    "3 Months (90d)" to 90,
+    "6 Months (180d)" to 180,
+    "1 Year (365d)" to 365
+)
+
 @Composable
 fun HabitsScreen(
     habits: List<HabitRoutine>,
@@ -162,7 +187,7 @@ fun HabitsScreen(
                             RoundedCornerShape(24.dp)
                         ),
                     shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 4.dp else 2.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isDark) Color(0xFF0B1733) else Color(0xFFFFFFFF)
                     )
@@ -178,11 +203,7 @@ fun HabitsScreen(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            Brush.linearGradient(
-                                                listOf(Color(0xFF0070F3), Color(0xFF38BDF8))
-                                            )
-                                        ),
+                                        .background(HabitIconLinearBrush),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -468,14 +489,7 @@ private fun HabitCardItem(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    listOf(
-                                        Color(0xFF38BDF8),
-                                        Color(0xFF0066FF)
-                                    )
-                                )
-                            ),
+                            .background(HabitIconRadialBrush),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -617,11 +631,7 @@ private fun HabitCardItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(Color(0xFF059669), Color(0xFF10B981))
-                        )
-                    )
+                    .background(HabitMarkDoneBrush)
                     .clickable { onMarkDone() }
                     .padding(vertical = 11.dp),
                 contentAlignment = Alignment.Center
@@ -654,7 +664,10 @@ private fun AddHabitDialog(
     onSave: (HabitRoutine) -> Unit
 ) {
     val isDark = LocalAppTheme.current.isDark
-    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+    val todayStr = remember {
+        val fmt = HabitDateFormatter.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        fmt.format(Date())
+    }
 
     var title by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Routine") }
@@ -665,24 +678,8 @@ private fun AddHabitDialog(
     var estimatedCostText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
 
-    // Preset chips
-    val presets = listOf(
-        "রুটিন / Routine 🔄" to ("Routine" to 30),
-        "রুম ভাড়া / Rent 🏠" to ("Living" to 30),
-        "সার্ভিসিং / Service 🏍️" to ("Vehicle" to 60),
-        "জিম / Fitness 🏋️" to ("Health" to 30),
-        "বিল / Bills 📶" to ("Utilities" to 30)
-    )
-
-    // Preset intervals
-    val intervalOptions = listOf(
-        "15 Days" to 15,
-        "1 Month (30d)" to 30,
-        "2 Months (60d)" to 60,
-        "3 Months (90d)" to 90,
-        "6 Months (180d)" to 180,
-        "1 Year (365d)" to 365
-    )
+    val presets = HabitPresets
+    val intervalOptions = HabitIntervalOptions
 
     val nextCalculatedDate = remember(lastDoneDate, intervalDays) {
         calculateNextDateString(lastDoneDate, intervalDays)
@@ -848,13 +845,16 @@ private fun MarkHabitDoneDialog(
     onDismiss: () -> Unit,
     onConfirm: (String?, String?) -> Unit
 ) {
-    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+    val todayStr = remember {
+        val fmt = HabitDateFormatter.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        fmt.format(Date())
+    }
     var completionDate by remember { mutableStateOf(todayStr) }
     var showCompletionDatePicker by remember { mutableStateOf(false) }
     var deductFromAccount by remember { mutableStateOf(accounts.isNotEmpty() && habit.estimatedCost > 0) }
     var selectedAccountId by remember { mutableStateOf<String?>(accounts.firstOrNull()?.id) }
 
-    val nextDate = remember(completionDate) {
+    val nextDate = remember(completionDate, habit.intervalDays) {
         calculateNextDateString(completionDate, habit.intervalDays)
     }
 
@@ -973,19 +973,9 @@ private fun getCategoryIcon(category: String, title: String): ImageVector {
     }
 }
 
-private fun calculateDaysRemaining(nextDueDateStr: String, sdf: SimpleDateFormat, today: Date): Int {
-    return try {
-        val target = sdf.parse(nextDueDateStr) ?: return 0
-        val diffMillis = target.time - today.time
-        (diffMillis / (1000 * 60 * 60 * 24)).toInt()
-    } catch (_: Exception) {
-        0
-    }
-}
-
 private fun calculateNextDateString(fromDateStr: String, intervalDays: Int): String {
     return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val sdf = HabitDateFormatter.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val cal = Calendar.getInstance()
         if (fromDateStr.isNotBlank()) {
             val parsed = sdf.parse(fromDateStr)

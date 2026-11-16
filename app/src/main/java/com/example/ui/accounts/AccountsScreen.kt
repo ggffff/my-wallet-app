@@ -102,6 +102,8 @@ import com.example.util.appString
 import com.example.util.formatBdt
 import kotlinx.coroutines.launch
 
+private val AccountIconBadgeBrush = Brush.linearGradient(listOf(PremiumBlue, PremiumPink))
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountsScreen(
@@ -217,7 +219,7 @@ fun AccountsScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(22.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                     ) {
                         Box(
@@ -262,7 +264,7 @@ fun AccountsScreen(
                                     modifier = Modifier
                                         .size(54.dp)
                                         .background(
-                                            Brush.linearGradient(listOf(PremiumBlue, PremiumPink)),
+                                            AccountIconBadgeBrush,
                                             CircleShape
                                         )
                                         .neonGlow(color = PremiumPink, shape = CircleShape, strokeWidth = 1.dp),
@@ -668,7 +670,7 @@ fun Modern3DAccountCard(
             .neonGlow(color = gradientColors.first().copy(alpha = 0.5f), shape = RoundedCornerShape(22.dp), strokeWidth = 1.dp)
             .bounceClick(scaleDown = 0.98f, onClick = onClick),
         shape = RoundedCornerShape(22.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(

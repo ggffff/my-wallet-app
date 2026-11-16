@@ -93,6 +93,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val TransactionDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+    override fun initialValue(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+}
+
+private val IncomeTransactionCategories = listOf("Job Salary", "Pathao Drive", "Tips", "Business", "Bonus", "Others")
+private val SpentTransactionCategories = listOf("Food", "Family", "Rental cost", "Shopping", "Transport", "Bills", "Others")
+private val IncomeSaveBrush = Brush.horizontalGradient(listOf(Color(0xFF059669), Color(0xFF10B981)))
+private val SpentSaveBrush = Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))
+
 /**
  * Premium Blue & White "Add Transaction" Floating Card Dialog.
  * Compact floating card modal ("শর্ট স্কিন") for Income and Expense.
@@ -124,9 +133,6 @@ fun AddTransactionDialog(
         var errorMessage by remember { mutableStateOf<String?>(null) }
         var isSubmitting by remember { mutableStateOf(false) }
 
-        val incomeCategories = listOf("Job Salary", "Pathao Drive", "Tips", "Business", "Bonus", "Others")
-        val spentCategories = listOf("Food", "Family", "Rental cost", "Shopping", "Transport", "Bills", "Others")
-
         var selectedCategory by remember(selectedType) {
             mutableStateOf(if (selectedType == TransactionType.INCOME) "Job Salary" else "Food")
         }
@@ -137,7 +143,7 @@ fun AddTransactionDialog(
         var accountDropdownExpanded by remember { mutableStateOf(false) }
 
         val todayDate = remember {
-            SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            TransactionDateFormatter.get()!!.format(Date())
         }
         var transactionDate by remember { mutableStateOf(todayDate) }
 
@@ -163,7 +169,7 @@ fun AddTransactionDialog(
                 .testTag("add_transaction_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
-            shadowElevation = if (isDark) 10.dp else 6.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(1.2.dp, cardBorder)
         ) {
             Column(
@@ -209,7 +215,7 @@ fun AddTransactionDialog(
                                 ImageRequest.Builder(context)
                                     .data(illustrationRes)
                                     .size(160)
-                                    .crossfade(true)
+                                    .crossfade(false)
                                     .build()
                             },
                             contentDescription = "Transaction Logo",
@@ -222,7 +228,7 @@ fun AddTransactionDialog(
                         Surface(
                             shape = CircleShape,
                             color = Color.White,
-                            shadowElevation = 3.dp,
+                            shadowElevation = 0.dp,
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                             modifier = Modifier
                                 .size(20.dp)
@@ -275,7 +281,7 @@ fun AddTransactionDialog(
                         shape = RoundedCornerShape(18.dp),
                         color = if (isIncome) (if (isDark) Color(0xFF0F3624) else Color(0xFFE8FDF2)) else cardBg,
                         border = BorderStroke(if (isIncome) 2.dp else 1.dp, if (isIncome) IncomeGreen else cardBorder),
-                        shadowElevation = if (isIncome) 3.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(54.dp)
@@ -306,7 +312,7 @@ fun AddTransactionDialog(
                         shape = RoundedCornerShape(18.dp),
                         color = if (isSpent) (if (isDark) Color(0xFF38141C) else Color(0xFFFDE8EC)) else cardBg,
                         border = BorderStroke(if (isSpent) 2.dp else 1.dp, if (isSpent) ExpenseRed else cardBorder),
-                        shadowElevation = if (isSpent) 3.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(54.dp)
@@ -332,7 +338,7 @@ fun AddTransactionDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // CATEGORIES (Horizontal Scroll)
-                val currentCategories = if (selectedType == TransactionType.INCOME) incomeCategories else spentCategories
+                val currentCategories = if (selectedType == TransactionType.INCOME) IncomeTransactionCategories else SpentTransactionCategories
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -375,7 +381,7 @@ fun AddTransactionDialog(
                     shape = RoundedCornerShape(20.dp),
                     color = cardBg,
                     border = BorderStroke(1.dp, cardBorder),
-                    shadowElevation = 1.dp,
+                    shadowElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
@@ -632,7 +638,7 @@ fun AddTransactionDialog(
                         shape = RoundedCornerShape(24.dp),
                         color = cardBg,
                         border = BorderStroke(1.5.dp, brandBlue),
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -686,7 +692,7 @@ fun AddTransactionDialog(
                         enabled = !isSubmitting,
                         shape = RoundedCornerShape(24.dp),
                         color = Color.Transparent,
-                        shadowElevation = 3.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -697,10 +703,7 @@ fun AddTransactionDialog(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
-                                    Brush.horizontalGradient(
-                                        if (selectedType == TransactionType.INCOME) listOf(Color(0xFF059669), Color(0xFF10B981))
-                                        else listOf(Color(0xFF0072FF), Color(0xFF0052FE))
-                                    )
+                                    if (selectedType == TransactionType.INCOME) IncomeSaveBrush else SpentSaveBrush
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
@@ -748,7 +751,7 @@ private fun CompactInputField(
         shape = RoundedCornerShape(20.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.dp, if (isFocused) activeAccent else cardBorder),
-        shadowElevation = if (isFocused) 3.dp else 1.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)

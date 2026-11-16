@@ -2,6 +2,10 @@ package com.example
 
 import android.app.Application
 import android.util.Log
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import com.example.ui.ads.AdMobConfig
 import com.google.android.gms.ads.MobileAds
 import com.google.firebase.FirebaseApp
@@ -11,12 +15,31 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
-class MyWalletApplication : Application() {
+class MyWalletApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
         initFirebaseSafely()
         initAdMobSafely()
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .crossfade(false)
+            .allowHardware(true)
+            .respectCacheHeaders(false)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.18)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(24L * 1024L * 1024L)
+                    .build()
+            }
+            .build()
     }
 
     private fun initAdMobSafely() {

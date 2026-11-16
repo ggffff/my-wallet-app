@@ -1,5 +1,7 @@
 package com.example.ui.settings
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -109,6 +111,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+private val PresetAvatarKeys = listOf("avatar_1", "avatar_2", "avatar_3", "avatar_4")
+private val PresetAvatarColors = listOf(PremiumBlue, PremiumPink, IncomeGreen, Color(0xFFA855F7))
+
 @Composable
 fun SettingsScreen(
     userProfile: UserProfile?,
@@ -132,8 +137,10 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val activeTheme = LocalAppTheme.current
 
+    val currentFirebaseUser = remember { Firebase.auth.currentUser }
+
     var displayName by remember(userProfile) {
-        mutableStateOf(userProfile?.displayName?.ifBlank { Firebase.auth.currentUser?.displayName ?: "User" } ?: "User")
+        mutableStateOf(userProfile?.displayName?.ifBlank { currentFirebaseUser?.displayName ?: "User" } ?: "User")
     }
 
     var selectedAvatar by remember(userProfile) {
@@ -145,21 +152,69 @@ fun SettingsScreen(
     var showPhoneLinkDialog by remember { mutableStateOf(false) }
 
     var linkedPhoneState by remember(userProfile) {
-        mutableStateOf(userProfile?.phoneNumber?.ifBlank { Firebase.auth.currentUser?.phoneNumber.orEmpty() } ?: Firebase.auth.currentUser?.phoneNumber.orEmpty())
+        mutableStateOf(userProfile?.phoneNumber?.ifBlank { currentFirebaseUser?.phoneNumber.orEmpty() } ?: currentFirebaseUser?.phoneNumber.orEmpty())
     }
 
-    // Universal Android Photo Picker & Gallery/Files Picker for Phone Uploads
+    // Universal Android Photo Picker & Gallery/Files Picker for Phone Uploads (downsampled <= 512px)
     val saveImageFromUri: (Uri) -> Unit = { uri ->
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val profileDir = File(context.filesDir, "profiles")
                 if (!profileDir.exists()) profileDir.mkdirs()
                 val photoFile = File(profileDir, "user_avatar_${System.currentTimeMillis()}.jpg")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    photoFile.outputStream().use { output ->
-                        input.copyTo(output)
+
+                val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(uri)?.use { boundsStream ->
+                    BitmapFactory.decodeStream(boundsStream, null, boundsOptions)
+                }
+
+                val maxDim = maxOf(boundsOptions.outWidth, boundsOptions.outHeight)
+                var sampleSize = 1
+                if (maxDim > 512) {
+                    while (maxDim / (sampleSize * 2) >= 512) {
+                        sampleSize *= 2
                     }
                 }
+
+                val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+                val decoded = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, decodeOptions)
+                }
+
+                if (decoded != null) {
+                    val largestEdge = maxOf(decoded.width, decoded.height)
+                    val finalBitmap = if (largestEdge > 512) {
+                        val scale = 512f / largestEdge.toFloat()
+                        val targetW = (decoded.width * scale).toInt().coerceAtLeast(1)
+                        val targetH = (decoded.height * scale).toInt().coerceAtLeast(1)
+                        Bitmap.createScaledBitmap(decoded, targetW, targetH, true)
+                    } else {
+                        decoded
+                    }
+                    try {
+                        photoFile.outputStream().use { output ->
+                            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
+                        }
+                    } finally {
+                        if (finalBitmap !== decoded) {
+                            finalBitmap.recycle()
+                        }
+                        decoded.recycle()
+                    }
+                } else {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        photoFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+
+                profileDir.listFiles { file ->
+                    file.name.startsWith("user_avatar_") && file.name != photoFile.name
+                }?.forEach { oldFile ->
+                    runCatching { oldFile.delete() }
+                }
+
                 val localUriString = Uri.fromFile(photoFile).toString()
                 withContext(Dispatchers.Main) {
                     selectedAvatar = localUriString
@@ -209,8 +264,8 @@ fun SettingsScreen(
             selectedAvatar.startsWith("https:") ||
             selectedAvatar.contains("/")
 
-    val presetAvatars = listOf("avatar_1", "avatar_2", "avatar_3", "avatar_4")
-    val avatarColors = listOf(PremiumBlue, PremiumPink, IncomeGreen, Color(0xFFA855F7))
+    val presetAvatars = PresetAvatarKeys
+    val avatarColors = PresetAvatarColors
 
     LazyColumn(
         modifier = Modifier
@@ -458,7 +513,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Google Account: ${Firebase.auth.currentUser?.email ?: "Signed in"}",
+                        text = "Google Account: ${currentFirebaseUser?.email ?: "Signed in"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1064,7 +1119,7 @@ fun SettingsScreen(
         // ==========================================
         item(key = "settings_signout_card") {
         Spacer(modifier = Modifier.height(10.dp))
-        val isSignedIn = com.google.firebase.Firebase.auth.currentUser != null
+        val isSignedIn = currentFirebaseUser != null
         Card(
             modifier = Modifier
                 .fillMaxWidth()

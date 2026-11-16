@@ -44,6 +44,20 @@ import com.example.util.AppLanguage
 import com.example.util.StringKeys
 import com.example.util.appString
 
+private val SupportedCountryLanguages = listOf(
+    AppLanguage.BANGLADESH,
+    AppLanguage.UNITED_STATES,
+    AppLanguage.UNITED_KINGDOM,
+    AppLanguage.CANADA,
+    AppLanguage.AUSTRALIA,
+    AppLanguage.UAE,
+    AppLanguage.SAUDI_ARABIA,
+    AppLanguage.GERMANY,
+    AppLanguage.FRANCE,
+    AppLanguage.NETHERLANDS,
+    AppLanguage.SWITZERLAND
+)
+
 @Composable
 fun CountryLanguageDialog(
     currentLanguage: AppLanguage,
@@ -52,20 +66,6 @@ fun CountryLanguageDialog(
 ) {
     val isDark = LocalAppTheme.current.isDark
     val activeTheme = LocalAppTheme.current
-
-    val countries = listOf(
-        AppLanguage.BANGLADESH,
-        AppLanguage.UNITED_STATES,
-        AppLanguage.UNITED_KINGDOM,
-        AppLanguage.CANADA,
-        AppLanguage.AUSTRALIA,
-        AppLanguage.UAE,
-        AppLanguage.SAUDI_ARABIA,
-        AppLanguage.GERMANY,
-        AppLanguage.FRANCE,
-        AppLanguage.NETHERLANDS,
-        AppLanguage.SWITZERLAND
-    )
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -136,7 +136,7 @@ fun CountryLanguageDialog(
                         .heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(countries, key = { it.code }) { item ->
+                    items(SupportedCountryLanguages, key = { it.code }) { item ->
                         val isSelected = currentLanguage == item
                         Box(
                             modifier = Modifier

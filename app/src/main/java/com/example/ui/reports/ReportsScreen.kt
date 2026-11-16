@@ -70,6 +70,14 @@ import com.example.util.LocalAppLanguage
 import com.example.util.formatBdt
 import kotlin.math.max
 
+private data class ReportsSummary(
+    val totalIncome: Double,
+    val totalExpense: Double,
+    val netSavings: Double,
+    val savingsRate: Int,
+    val categoryBreakdown: List<CategoryStat>
+)
+
 @Composable
 fun ReportsScreen(
     transactions: List<Transaction>,
@@ -77,39 +85,54 @@ fun ReportsScreen(
 ) {
     val language = LocalAppLanguage.current
 
-    val totalIncome = remember(transactions) {
-        transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    }
+    val summary = remember(transactions) {
+        var income = 0.0
+        var expense = 0.0
+        val catSums = LinkedHashMap<String, Pair<Double, Int>>()
 
-    val totalExpense = remember(transactions) {
-        transactions.filter { it.type == "SPENT" }.sumOf { it.amount }
-    }
-
-    val netSavings = remember(totalIncome, totalExpense) {
-        totalIncome - totalExpense
-    }
-
-    val savingsRate = remember(totalIncome, totalExpense) {
-        if (totalIncome > 0) {
-            (((totalIncome - totalExpense) / totalIncome) * 100).toInt().coerceIn(-100, 100)
-        } else 0
-    }
-
-    val categoryBreakdown = remember(transactions) {
-        val expenseTxns = transactions.filter { it.type == "SPENT" }
-        val sumTotal = expenseTxns.sumOf { it.amount }.coerceAtLeast(1.0)
-        expenseTxns.groupBy { it.category }
-            .map { (cat, list) ->
-                val catSum = list.sumOf { it.amount }
-                CategoryStat(
-                    category = cat,
-                    amount = catSum,
-                    percentage = ((catSum / sumTotal) * 100).toInt(),
-                    count = list.size
-                )
+        transactions.forEach { txn ->
+            when (txn.type) {
+                "INCOME" -> income += txn.amount
+                "SPENT" -> {
+                    expense += txn.amount
+                    val prev = catSums[txn.category]
+                    catSums[txn.category] = if (prev == null) {
+                        txn.amount to 1
+                    } else {
+                        (prev.first + txn.amount) to (prev.second + 1)
+                    }
+                }
             }
-            .sortedByDescending { it.amount }
+        }
+
+        val netSavings = income - expense
+        val savingsRate = if (income > 0) {
+            (((income - expense) / income) * 100).toInt().coerceIn(-100, 100)
+        } else 0
+        val sumTotal = expense.coerceAtLeast(1.0)
+        val breakdown = catSums.map { (cat, pair) ->
+            CategoryStat(
+                category = cat,
+                amount = pair.first,
+                percentage = ((pair.first / sumTotal) * 100).toInt(),
+                count = pair.second
+            )
+        }.sortedByDescending { it.amount }
+
+        ReportsSummary(
+            totalIncome = income,
+            totalExpense = expense,
+            netSavings = netSavings,
+            savingsRate = savingsRate,
+            categoryBreakdown = breakdown
+        )
     }
+
+    val totalIncome = summary.totalIncome
+    val totalExpense = summary.totalExpense
+    val netSavings = summary.netSavings
+    val savingsRate = summary.savingsRate
+    val categoryBreakdown = summary.categoryBreakdown
 
     LazyColumn(
         modifier = Modifier

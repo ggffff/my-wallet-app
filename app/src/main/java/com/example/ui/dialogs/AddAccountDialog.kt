@@ -78,6 +78,14 @@ import com.example.data.model.AccountType
 import com.example.ui.motion.bounceClick
 import com.example.ui.theme.LocalAppTheme
 
+private val AccountTypeOptions = listOf(
+    Triple(AccountType.BANK, "Bank", Icons.Default.AccountBalance),
+    Triple(AccountType.MFS, "MFS", Icons.Default.PhoneAndroid),
+    Triple(AccountType.CASH_FLOW, "Cash Flow", Icons.Default.AttachMoney)
+)
+
+private val AccountSaveBrush = Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))
+
 /**
  * Premium Blue & White "Add New Account" Floating Card Dialog.
  * Compact floating card modal ("শর্ট স্কিন") that overlays on top of the home screen.
@@ -127,7 +135,7 @@ fun AddAccountDialog(
                 .testTag("add_account_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
-            shadowElevation = if (isDark) 10.dp else 6.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(1.2.dp, cardBorder)
         ) {
             Column(
@@ -167,7 +175,7 @@ fun AddAccountDialog(
                                 ImageRequest.Builder(context)
                                     .data(R.drawable.img_wallet_3d_logo)
                                     .size(160)
-                                    .crossfade(true)
+                                    .crossfade(false)
                                     .build()
                             },
                             contentDescription = "Wallet Logo",
@@ -177,7 +185,7 @@ fun AddAccountDialog(
                         Surface(
                             shape = CircleShape,
                             color = Color.White,
-                            shadowElevation = 3.dp,
+                            shadowElevation = 0.dp,
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                             modifier = Modifier
                                 .size(20.dp)
@@ -221,13 +229,7 @@ fun AddAccountDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val categories = listOf(
-                        Triple(AccountType.BANK, "Bank", Icons.Default.AccountBalance),
-                        Triple(AccountType.MFS, "MFS", Icons.Default.PhoneAndroid),
-                        Triple(AccountType.CASH_FLOW, "Cash Flow", Icons.Default.AttachMoney)
-                    )
-
-                    categories.forEach { (type, label, icon) ->
+                    AccountTypeOptions.forEach { (type, label, icon) ->
                         val isSelected = selectedType == type
                         val itemBg = if (isSelected) {
                             if (isDark) Color(0xFF0F265C) else Color(0xFFEBF4FF)
@@ -247,7 +249,7 @@ fun AddAccountDialog(
                             shape = RoundedCornerShape(18.dp),
                             color = itemBg,
                             border = itemBorder,
-                            shadowElevation = if (isSelected) 3.dp else 1.dp,
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(82.dp)
@@ -470,7 +472,7 @@ fun AddAccountDialog(
                         shape = RoundedCornerShape(24.dp),
                         color = cardBg,
                         border = BorderStroke(1.5.dp, brandBlue),
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -521,7 +523,7 @@ fun AddAccountDialog(
                         enabled = !isSubmitting,
                         shape = RoundedCornerShape(24.dp),
                         color = Color.Transparent,
-                        shadowElevation = 3.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -531,7 +533,7 @@ fun AddAccountDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))),
+                                .background(AccountSaveBrush),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSubmitting) {
@@ -569,7 +571,7 @@ private fun CompactInputField(
         shape = RoundedCornerShape(20.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.dp, if (isFocused) activeAccent else cardBorder),
-        shadowElevation = if (isFocused) 3.dp else 1.dp,
+        shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp)

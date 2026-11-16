@@ -1,7 +1,5 @@
 package com.example.ui.goals
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import com.example.ui.motion.AnimatedGoalProgressBar
 import com.example.ui.motion.tilt3D
 import androidx.compose.foundation.background
@@ -203,12 +201,6 @@ private fun GoalCardItem(
         (goal.savedAmount / goal.targetAmount).toFloat().coerceIn(0f, 1f)
     } else 0f
 
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 800),
-        label = "goalProgress"
-    )
-
     val isCompleted = goal.savedAmount >= goal.targetAmount
     val remaining = (goal.targetAmount - goal.savedAmount).coerceAtLeast(0.0)
 
@@ -352,7 +344,7 @@ private fun GoalCardItem(
                 }
 
                 Text(
-                    text = "${(animatedProgress * 100).toInt()}%",
+                    text = "${(progress * 100).toInt()}%",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                     color = if (isCompleted) IncomeGreen else BrandGlow
                 )

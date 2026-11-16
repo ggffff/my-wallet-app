@@ -105,11 +105,6 @@ fun CurrencyDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 20.dp)
                 .heightIn(max = 620.dp)
-                .shadow(
-                    elevation = if (isDark) 12.dp else 8.dp,
-                    shape = RoundedCornerShape(28.dp),
-                    spotColor = if (isDark) Color(0xFF0052FE).copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.12f)
-                )
                 .testTag("currency_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
@@ -259,7 +254,7 @@ fun CurrencyDialog(
                                 width = if (isSelected) 2.dp else 1.dp,
                                 color = if (isSelected) activeAccent else cardBorder
                             ),
-                            shadowElevation = if (isSelected) 3.dp else 1.dp,
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .bounceClick()

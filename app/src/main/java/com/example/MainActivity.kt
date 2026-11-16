@@ -72,12 +72,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -256,14 +257,18 @@ class MainActivity : ComponentActivity() {
                                     val user = Firebase.auth.currentUser ?: auth?.currentUser
                                     Log.d("MainActivity", "Google sign-in succeeded, entering Dashboard directly: ${user?.uid}")
                                     isGuestMode = false
-                                    prefs.edit().putBoolean("guest_mode_enabled", false).apply()
-                                    prefs.edit().putString("selected_theme", currentTheme.id).apply()
+                                    prefs.edit()
+                                        .putBoolean("guest_mode_enabled", false)
+                                        .putString("selected_theme", currentTheme.id)
+                                        .apply()
                                     currentUser = user
                                 },
                                 onExploreAsGuest = {
                                     isGuestMode = true
-                                    prefs.edit().putBoolean("guest_mode_enabled", true).apply()
-                                    prefs.edit().putString("selected_theme", currentTheme.id).apply()
+                                    prefs.edit()
+                                        .putBoolean("guest_mode_enabled", true)
+                                        .putString("selected_theme", currentTheme.id)
+                                        .apply()
                                 },
                                 onToggleDarkTheme = { dark ->
                                     isDarkTheme = dark
@@ -361,13 +366,19 @@ fun MainWalletApp(
         }
     }
 
-    val onSelectThemeAndPersist: (AppTheme) -> Unit = remember(prefs, coroutineScope, repository, onSelectTheme) {
+    val latestUserProfile by rememberUpdatedState(userProfile)
+    val latestCurrentCurrency by rememberUpdatedState(currentCurrency)
+    val latestAppLanguage by rememberUpdatedState(appLanguage)
+    val latestCurrentTheme by rememberUpdatedState(currentTheme)
+    val latestOnSelectTheme by rememberUpdatedState(onSelectTheme)
+
+    val onSelectThemeAndPersist: (AppTheme) -> Unit = remember(prefs, coroutineScope, repository) {
         { theme ->
-            onSelectTheme(theme)
+            latestOnSelectTheme(theme)
             prefs.edit().putString("selected_theme", theme.id).apply()
             coroutineScope.launch {
                 try {
-                    val current = userProfile ?: UserProfile()
+                    val current = latestUserProfile ?: UserProfile()
                     repository.saveUserProfile(current.copy(themeMode = theme.id))
                 } catch (t: Throwable) {
                     android.util.Log.w("MainActivity", "Failed to sync theme to Firestore", t)
@@ -398,6 +409,208 @@ fun MainWalletApp(
     var transactionDialogType by remember { mutableStateOf(TransactionType.SPENT) }
     var showAddGoalDialog by remember { mutableStateOf(false) }
     var showAddBillDialog by remember { mutableStateOf(false) }
+
+    val onOpenAddAccountDialog = remember { { showAddAccountDialog = true } }
+    val onOpenAddTransactionWithType: (TransactionType) -> Unit = remember {
+        { type ->
+            transactionDialogType = type
+            showAddTransactionDialog = true
+        }
+    }
+    val onOpenAddSpentTransaction = remember {
+        {
+            transactionDialogType = TransactionType.SPENT
+            showAddTransactionDialog = true
+        }
+    }
+    val onOpenAddGoalDialog = remember { { showAddGoalDialog = true } }
+    val onOpenAddBillDialog = remember { { showAddBillDialog = true } }
+
+    val onUpdateAccountCallback: (Account) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { updated ->
+            coroutineScope.launch {
+                try {
+                    repository.updateAccount(updated)
+                    snackbarHostState.showSnackbar("Account \"${updated.name}\" updated")
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error updating account", e)
+                    snackbarHostState.showSnackbar("Failed to update account: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onDeleteAccountCallback: (Account) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { acc ->
+            coroutineScope.launch {
+                try {
+                    repository.deleteAccount(acc.id)
+                    snackbarHostState.showSnackbar("Account \"${acc.name}\" deleted")
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error deleting account", e)
+                    snackbarHostState.showSnackbar("Failed to delete account: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onSaveProfileCallback: (String, String) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { name, avatar ->
+            coroutineScope.launch {
+                repository.saveUserProfile(
+                    UserProfile(
+                        displayName = name,
+                        photoUrl = avatar,
+                        currency = latestCurrentCurrency.code,
+                        language = latestAppLanguage.code,
+                        themeMode = latestCurrentTheme.id
+                    )
+                )
+                snackbarHostState.showSnackbar("Profile & theme saved")
+            }
+        }
+    }
+
+    val onLinkPhoneCallback: (String) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { phone ->
+            coroutineScope.launch {
+                try {
+                    repository.linkPhoneNumberToCurrentUser(phone)
+                    snackbarHostState.showSnackbar("Mobile number $phone verified & linked successfully!")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("Failed to link phone: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onDeleteTransactionCallback: (Transaction) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { txn ->
+            coroutineScope.launch {
+                try {
+                    repository.deleteTransaction(txn)
+                    snackbarHostState.showSnackbar("Transaction deleted")
+                } catch (t: Throwable) {
+                    Log.e("MainActivity", "Error deleting transaction", t)
+                    snackbarHostState.showSnackbar("Could not delete: ${t.localizedMessage ?: "Unknown error"}")
+                }
+            }
+        }
+    }
+
+    val onAdjustGoalSavingsCallback: (Goal, Double, String?) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { goal, delta, accId ->
+            coroutineScope.launch {
+                repository.adjustGoalSavings(goal, delta, accId)
+                snackbarHostState.showSnackbar("Goal updated")
+            }
+        }
+    }
+
+    val onDeleteGoalCallback: (Goal) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { goal ->
+            coroutineScope.launch {
+                repository.deleteGoal(goal.id)
+                snackbarHostState.showSnackbar("Goal removed")
+            }
+        }
+    }
+
+    val onToggleBillPaidCallback: (Bill, String?) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { bill, accId ->
+            coroutineScope.launch {
+                repository.toggleBillPaid(bill, accId)
+                snackbarHostState.showSnackbar(if (!bill.isPaid) "Bill marked as paid" else "Bill reopened")
+            }
+        }
+    }
+
+    val onDeleteBillCallback: (Bill) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { bill ->
+            coroutineScope.launch {
+                repository.deleteBill(bill.id)
+                snackbarHostState.showSnackbar("Bill removed")
+            }
+        }
+    }
+
+    val onAddDebtCallback: (Debt, String?) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { newDebt, accId ->
+            coroutineScope.launch {
+                try {
+                    repository.addDebt(newDebt, accId)
+                    snackbarHostState.showSnackbar("হিসাব সফলভাবে সংরক্ষিত হয়েছে")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onRecordRepaymentCallback: (Debt, Double, String?) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { debt, repayAmt, accId ->
+            coroutineScope.launch {
+                try {
+                    repository.recordDebtRepayment(debt, repayAmt, accId)
+                    snackbarHostState.showSnackbar("পরিশোধ রেকর্ড সফল হয়েছে")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onDeleteDebtCallback: (Debt) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { debt ->
+            coroutineScope.launch {
+                try {
+                    repository.deleteDebt(debt.id)
+                    snackbarHostState.showSnackbar("হিসাব মুছে ফেলা হয়েছে")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onAddHabitCallback: (HabitRoutine) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { newHabit ->
+            coroutineScope.launch {
+                try {
+                    repository.addHabit(newHabit)
+                    snackbarHostState.showSnackbar("নতুন রুটিন সংরক্ষিত হয়েছে")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onMarkHabitCompletedCallback: (HabitRoutine, String?, String?) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { habit, compDate, costAccId ->
+            coroutineScope.launch {
+                try {
+                    repository.markHabitCompleted(habit, compDate, costAccId)
+                    snackbarHostState.showSnackbar("রুটিন সম্পন্ন হয়েছে এবং পরবর্তী তারিখ সেট করা হয়েছে!")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                }
+            }
+        }
+    }
+
+    val onDeleteHabitCallback: (HabitRoutine) -> Unit = remember(coroutineScope, repository, snackbarHostState) {
+        { habit ->
+            coroutineScope.launch {
+                try {
+                    repository.deleteHabit(habit.id)
+                    snackbarHostState.showSnackbar("রুটিন মুছে ফেলা হয়েছে")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
+                }
+            }
+        }
+    }
 
     // System BackHandler returns to Home from any tab or sub-screen
     BackHandler(enabled = currentScreen != Screen.HOME) {
@@ -495,9 +708,9 @@ fun MainWalletApp(
                             )
                             .testTag("bottom_navigation_bar"),
                         shape = RoundedCornerShape(28.dp),
-                        color = if (isDarkTheme) Color(0xF209142E) else Color(0xF7FFFFFF),
-                        shadowElevation = if (isDarkTheme) 10.dp else 6.dp,
-                        tonalElevation = 4.dp
+                        color = if (isDarkTheme) Color(0xFF09142E) else Color.White,
+                        shadowElevation = 0.dp,
+                        tonalElevation = 0.dp
                     ) {
                         Row(
                             modifier = Modifier
@@ -550,26 +763,26 @@ fun MainWalletApp(
                 .padding(innerPadding)
         ) {
             AnimatedContent(
+                modifier = Modifier.clipToBounds(),
                 targetState = currentScreen,
                 transitionSpec = {
                     val isForward = targetState.ordinal >= initialState.ordinal
                     val enterOffset: (Int) -> Int = { fullWidth ->
-                        if (isForward) (fullWidth * 0.22f).toInt() else -(fullWidth * 0.22f).toInt()
+                        if (isForward) (fullWidth * 0.10f).toInt() else -(fullWidth * 0.10f).toInt()
                     }
                     val exitOffset: (Int) -> Int = { fullWidth ->
-                        if (isForward) -(fullWidth * 0.14f).toInt() else (fullWidth * 0.14f).toInt()
+                        if (isForward) -(fullWidth * 0.06f).toInt() else (fullWidth * 0.06f).toInt()
                     }
                     (slideInHorizontally(
-                        animationSpec = tween(250, easing = FastOutSlowInEasing),
+                        animationSpec = tween(180, easing = FastOutSlowInEasing),
                         initialOffsetX = enterOffset
-                    ) + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)))
+                    ) + fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)))
                         .togetherWith(
                             slideOutHorizontally(
-                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                animationSpec = tween(140, easing = FastOutSlowInEasing),
                                 targetOffsetX = exitOffset
-                            ) + fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing))
+                            ) + fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing))
                         )
-                        .using(SizeTransform(clip = false))
                 },
                 label = "screenTransition"
             ) { screen ->
@@ -584,33 +797,10 @@ fun MainWalletApp(
                         habits = habits,
                         preloadedNativeAd = homeNativeAd,
                         bannerController = bannerController,
-                        onAddAccountClicked = { showAddAccountDialog = true },
-                        onUpdateAccount = { updated ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.updateAccount(updated)
-                                    snackbarHostState.showSnackbar("Account \"${updated.name}\" balance updated")
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error updating account", e)
-                                    snackbarHostState.showSnackbar("Failed to update account: ${e.message}")
-                                }
-                            }
-                        },
-                        onDeleteAccount = { acc ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.deleteAccount(acc.id)
-                                    snackbarHostState.showSnackbar("Account \"${acc.name}\" deleted")
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error deleting account", e)
-                                    snackbarHostState.showSnackbar("Failed to delete account: ${e.message}")
-                                }
-                            }
-                        },
-                        onAddTransactionClicked = { type ->
-                            transactionDialogType = type
-                            showAddTransactionDialog = true
-                        },
+                        onAddAccountClicked = onOpenAddAccountDialog,
+                        onUpdateAccount = onUpdateAccountCallback,
+                        onDeleteAccount = onDeleteAccountCallback,
+                        onAddTransactionClicked = onOpenAddTransactionWithType,
                         onViewAllStatementsClicked = onNavigateTransactions,
                         onViewBillsClicked = onNavigateBills,
                         onViewGoalsClicked = onNavigateGoals,
@@ -624,29 +814,9 @@ fun MainWalletApp(
                     )
                     Screen.ACCOUNTS -> AccountsScreen(
                         accounts = accounts,
-                        onAddAccountClicked = { showAddAccountDialog = true },
-                        onUpdateAccount = { updated ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.updateAccount(updated)
-                                    snackbarHostState.showSnackbar("Account \"${updated.name}\" updated")
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error updating account", e)
-                                    snackbarHostState.showSnackbar("Failed to update account: ${e.message}")
-                                }
-                            }
-                        },
-                        onDeleteAccount = { acc ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.deleteAccount(acc.id)
-                                    snackbarHostState.showSnackbar("Account \"${acc.name}\" deleted")
-                                } catch (e: Exception) {
-                                    Log.e("MainActivity", "Error deleting account", e)
-                                    snackbarHostState.showSnackbar("Failed to delete account: ${e.message}")
-                                }
-                            }
-                        }
+                        onAddAccountClicked = onOpenAddAccountDialog,
+                        onUpdateAccount = onUpdateAccountCallback,
+                        onDeleteAccount = onDeleteAccountCallback
                     )
                     Screen.REPORTS -> ReportsScreen(
                         transactions = transactions,
@@ -662,155 +832,46 @@ fun MainWalletApp(
                         onSelectTheme = onSelectThemeAndPersist,
                         onToggleLanguage = onToggleLanguage,
                         onSelectCurrency = onSelectCurrency,
-                        onSaveProfile = { name, avatar ->
-                            coroutineScope.launch {
-                                repository.saveUserProfile(
-                                    UserProfile(
-                                        displayName = name,
-                                        photoUrl = avatar,
-                                        currency = currentCurrency.code,
-                                        language = appLanguage.code,
-                                        themeMode = currentTheme.id
-                                    )
-                                )
-                                snackbarHostState.showSnackbar("Profile & theme saved")
-                            }
-                        },
+                        onSaveProfile = onSaveProfileCallback,
                         onSignOut = onSignOut,
                         onOpenGoals = onNavigateGoals,
                         onOpenBills = onNavigateBills,
                         onOpenDebts = onNavigateDebts,
                         onOpenHabits = onNavigateHabits,
-                        onLinkPhoneNumber = { phone ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.linkPhoneNumberToCurrentUser(phone)
-                                    snackbarHostState.showSnackbar("Mobile number $phone verified & linked successfully!")
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("Failed to link phone: ${e.message}")
-                                }
-                            }
-                        }
+                        onLinkPhoneNumber = onLinkPhoneCallback
                     )
                     Screen.TRANSACTIONS -> StatementsScreen(
                         transactions = transactions,
-                        onAddTransactionClicked = {
-                            transactionDialogType = TransactionType.SPENT
-                            showAddTransactionDialog = true
-                        },
-                        onDeleteTransactionClicked = { txn ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.deleteTransaction(txn)
-                                    snackbarHostState.showSnackbar("Transaction deleted")
-                                } catch (t: Throwable) {
-                                    android.util.Log.e("MainActivity", "Error deleting transaction", t)
-                                    snackbarHostState.showSnackbar("Could not delete: ${t.localizedMessage ?: "Unknown error"}")
-                                }
-                            }
-                        }
+                        onAddTransactionClicked = onOpenAddSpentTransaction,
+                        onDeleteTransactionClicked = onDeleteTransactionCallback
                     )
                     Screen.GOALS -> GoalsScreen(
                         goals = goals,
                         accounts = accounts,
-                        onAddGoalClicked = { showAddGoalDialog = true },
-                        onAdjustSavings = { goal, delta, accId ->
-                            coroutineScope.launch {
-                                repository.adjustGoalSavings(goal, delta, accId)
-                                snackbarHostState.showSnackbar("Goal updated")
-                            }
-                        },
-                        onDeleteGoal = { goal ->
-                            coroutineScope.launch {
-                                repository.deleteGoal(goal.id)
-                                snackbarHostState.showSnackbar("Goal removed")
-                            }
-                        }
+                        onAddGoalClicked = onOpenAddGoalDialog,
+                        onAdjustSavings = onAdjustGoalSavingsCallback,
+                        onDeleteGoal = onDeleteGoalCallback
                     )
                     Screen.BILLS -> BillsScreen(
                         bills = bills,
                         accounts = accounts,
-                        onAddBillClicked = { showAddBillDialog = true },
-                        onToggleBillPaid = { bill, accId ->
-                            coroutineScope.launch {
-                                repository.toggleBillPaid(bill, accId)
-                                snackbarHostState.showSnackbar(if (!bill.isPaid) "Bill marked as paid" else "Bill reopened")
-                            }
-                        },
-                        onDeleteBill = { bill ->
-                            coroutineScope.launch {
-                                repository.deleteBill(bill.id)
-                                snackbarHostState.showSnackbar("Bill removed")
-                            }
-                        }
+                        onAddBillClicked = onOpenAddBillDialog,
+                        onToggleBillPaid = onToggleBillPaidCallback,
+                        onDeleteBill = onDeleteBillCallback
                     )
                     Screen.DEBTS -> DebtsScreen(
                         debts = debts,
                         accounts = accounts,
-                        onAddDebt = { newDebt, accId ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.addDebt(newDebt, accId)
-                                    snackbarHostState.showSnackbar("হিসাব সফলভাবে সংরক্ষিত হয়েছে")
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
-                                }
-                            }
-                        },
-                        onRecordRepayment = { debt, repayAmt, accId ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.recordDebtRepayment(debt, repayAmt, accId)
-                                    snackbarHostState.showSnackbar("পরিশোধ রেকর্ড সফল হয়েছে")
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
-                                }
-                            }
-                        },
-                        onDeleteDebt = { debt ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.deleteDebt(debt.id)
-                                    snackbarHostState.showSnackbar("হিসাব মুছে ফেলা হয়েছে")
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
-                                }
-                            }
-                        }
+                        onAddDebt = onAddDebtCallback,
+                        onRecordRepayment = onRecordRepaymentCallback,
+                        onDeleteDebt = onDeleteDebtCallback
                     )
                     Screen.HABITS -> HabitsScreen(
                         habits = habits,
                         accounts = accounts,
-                        onAddHabit = { newHabit ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.addHabit(newHabit)
-                                    snackbarHostState.showSnackbar("নতুন রুটিন সংরক্ষিত হয়েছে")
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
-                                }
-                            }
-                        },
-                        onMarkCompleted = { habit, compDate, costAccId ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.markHabitCompleted(habit, compDate, costAccId)
-                                    snackbarHostState.showSnackbar("রুটিন সম্পন্ন হয়েছে এবং পরবর্তী তারিখ সেট করা হয়েছে!")
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
-                                }
-                            }
-                        },
-                        onDeleteHabit = { habit ->
-                            coroutineScope.launch {
-                                try {
-                                    repository.deleteHabit(habit.id)
-                                    snackbarHostState.showSnackbar("রুটিন মুছে ফেলা হয়েছে")
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar("ব্যর্থ হয়েছে: ${e.message}")
-                                }
-                            }
-                        }
+                        onAddHabit = onAddHabitCallback,
+                        onMarkCompleted = onMarkHabitCompletedCallback,
+                        onDeleteHabit = onDeleteHabitCallback
                     )
                     Screen.CHATBOT -> ChatBotScreen(
                         accounts = accounts,
@@ -903,7 +964,7 @@ private fun androidx.compose.foundation.layout.RowScope.PremiumBottomNavItem(
     val isDark = LocalAppTheme.current.isDark
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.05f else 1.0f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(150, easing = FastOutSlowInEasing),
         label = "navScale"
     )
 
@@ -918,7 +979,10 @@ private fun androidx.compose.foundation.layout.RowScope.PremiumBottomNavItem(
     Box(
         modifier = Modifier
             .weight(1f)
-            .scale(scale)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(RoundedCornerShape(20.dp))
             .bounceClick(scaleDown = 0.94f) { onClick() }
             .padding(vertical = 4.dp, horizontal = 2.dp),

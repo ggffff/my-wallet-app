@@ -20,9 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -94,8 +92,12 @@ fun SplashScreen(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(140.dp)
-                    .scale(scale.value)
-                    .alpha(alpha.value)
+                    .graphicsLayer {
+                        val s = scale.value
+                        scaleX = s
+                        scaleY = s
+                        this.alpha = alpha.value
+                    }
             ) {
                 AsyncImage(
                     model = logoRequest,
@@ -117,7 +119,7 @@ fun SplashScreen(
                     letterSpacing = 0.5.sp
                 ),
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.alpha(alpha.value)
+                modifier = Modifier.graphicsLayer { this.alpha = alpha.value }
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -129,7 +131,7 @@ fun SplashScreen(
                     fontSize = 13.sp
                 ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.alpha(alpha.value * 0.85f)
+                modifier = Modifier.graphicsLayer { this.alpha = alpha.value * 0.85f }
             )
         }
     }

@@ -89,6 +89,21 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
+private val BillDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+    override fun initialValue(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+}
+
+private val BillCategoryOptions = listOf(
+    Triple("Electricity", "Electricity", Icons.Default.ElectricBolt),
+    Triple("Internet", "Internet", Icons.Default.Wifi),
+    Triple("House Rent", "Rent", Icons.Default.Home),
+    Triple("Water", "Water", Icons.Default.WaterDrop),
+    Triple("Tuition", "Tuition", Icons.Default.School),
+    Triple("Subscription", "Sub", Icons.Default.Subscriptions)
+)
+
+private val BillSaveBrush = Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))
+
 /**
  * Premium Blue & White "Add Bill & Due" Floating Card Dialog.
  * Compact floating card modal ("শর্ট স্কিন") for Bills and Dues.
@@ -116,7 +131,7 @@ fun AddBillDialog(
         val defaultDueDate = remember {
             val cal = Calendar.getInstance()
             cal.add(Calendar.DAY_OF_MONTH, 5)
-            SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+            BillDateFormatter.get()!!.format(cal.time)
         }
         var dueDate by remember { mutableStateOf(defaultDueDate) }
         var category by remember { mutableStateOf("Electricity") }
@@ -137,15 +152,6 @@ fun AddBillDialog(
         val activeAccent = if (isDark) cyanAccent else brandBlue
         val badgeBg = if (isDark) Color(0xFF132854) else Color(0xFFEBF4FF)
 
-        val billCategories = listOf(
-            Triple("Electricity", "Electricity", Icons.Default.ElectricBolt),
-            Triple("Internet", "Internet", Icons.Default.Wifi),
-            Triple("House Rent", "Rent", Icons.Default.Home),
-            Triple("Water", "Water", Icons.Default.WaterDrop),
-            Triple("Tuition", "Tuition", Icons.Default.School),
-            Triple("Subscription", "Sub", Icons.Default.Subscriptions)
-        )
-
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -154,7 +160,7 @@ fun AddBillDialog(
                 .testTag("add_bill_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
-            shadowElevation = if (isDark) 10.dp else 6.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(1.2.dp, cardBorder)
         ) {
             Column(
@@ -194,7 +200,7 @@ fun AddBillDialog(
                                 ImageRequest.Builder(context)
                                     .data(R.drawable.img_quick_bills_dues)
                                     .size(160)
-                                    .crossfade(true)
+                                    .crossfade(false)
                                     .build()
                             },
                             contentDescription = "Bill Logo",
@@ -206,7 +212,7 @@ fun AddBillDialog(
                         Surface(
                             shape = CircleShape,
                             color = Color.White,
-                            shadowElevation = 3.dp,
+                            shadowElevation = 0.dp,
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                             modifier = Modifier
                                 .size(20.dp)
@@ -247,7 +253,7 @@ fun AddBillDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(billCategories, key = { it.first }) { (key, label, icon) ->
+                    items(BillCategoryOptions, key = { it.first }) { (key, label, icon) ->
                         val isSelected = category == key
                         Surface(
                             onClick = {
@@ -257,7 +263,7 @@ fun AddBillDialog(
                             shape = RoundedCornerShape(16.dp),
                             color = if (isSelected) (if (isDark) Color(0xFF0F265C) else Color(0xFFEBF4FF)) else cardBg,
                             border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) activeAccent else cardBorder),
-                            shadowElevation = if (isSelected) 2.dp else 1.dp,
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .height(76.dp)
                                 .width(78.dp)
@@ -442,7 +448,7 @@ fun AddBillDialog(
                         shape = RoundedCornerShape(20.dp),
                         color = cardBg,
                         border = BorderStroke(1.dp, cardBorder),
-                        shadowElevation = 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(58.dp)
@@ -509,7 +515,7 @@ fun AddBillDialog(
                         shape = RoundedCornerShape(24.dp),
                         color = cardBg,
                         border = BorderStroke(1.5.dp, brandBlue),
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -556,7 +562,7 @@ fun AddBillDialog(
                         enabled = !isSubmitting,
                         shape = RoundedCornerShape(24.dp),
                         color = Color.Transparent,
-                        shadowElevation = 3.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -566,7 +572,7 @@ fun AddBillDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))),
+                                .background(BillSaveBrush),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSubmitting) {
@@ -613,7 +619,7 @@ private fun CompactInputField(
         shape = RoundedCornerShape(20.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.dp, if (isFocused) activeAccent else cardBorder),
-        shadowElevation = if (isFocused) 3.dp else 1.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)

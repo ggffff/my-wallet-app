@@ -15,6 +15,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,7 +23,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,7 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -98,13 +100,7 @@ fun Modifier.glassmorphicSurface(
     .background(backgroundColor)
     .border(
         width = 1.dp,
-        brush = Brush.linearGradient(
-            listOf(
-                borderColor,
-                borderColor.copy(alpha = 0.05f),
-                borderColor
-            )
-        ),
+        color = borderColor,
         shape = shape
     )
 
@@ -154,8 +150,17 @@ fun AnimatedBdtCounter(
 }
 
 /**
- * Animated Goal Progress Bar with traveling specular highlight.
+ * Animated Goal Progress Bar drawn directly on Canvas so progress animation
+ * executes in the draw phase without triggering layout/measure passes per frame.
  */
+private val CompletedProgressBrush = Brush.linearGradient(
+    colors = listOf(IncomeGreen, Color(0xFF34D399), Color(0xFF10B981))
+)
+private val ActiveProgressBrush = Brush.linearGradient(
+    colors = listOf(PremiumBlue, PremiumPink, Color(0xFFF472B6))
+)
+private val ProgressTrackColor = Color.White.copy(alpha = 0.12f)
+
 @Composable
 fun AnimatedGoalProgressBar(
     progressPercent: Float,
@@ -167,32 +172,26 @@ fun AnimatedGoalProgressBar(
     val clampedProgress = progressPercent.coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = clampedProgress,
-        animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
         label = "goalProgress"
     )
+    val fillBrush = if (isCompleted) CompletedProgressBrush else ActiveProgressBrush
 
-    val fillBrush = remember(isCompleted) {
-        Brush.linearGradient(
-            colors = if (isCompleted) {
-                listOf(IncomeGreen, Color(0xFF34D399), Color(0xFF10B981))
-            } else {
-                listOf(PremiumBlue, PremiumPink, Color(0xFFF472B6))
-            }
-        )
-    }
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color.White.copy(alpha = 0.12f))
+    Canvas(
+        modifier = modifier.clip(RoundedCornerShape(6.dp))
     ) {
-        if (animatedProgress > 0.01f) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(animatedProgress)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(fillBrush)
+        val corner = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+        drawRoundRect(
+            color = ProgressTrackColor,
+            size = size,
+            cornerRadius = corner
+        )
+        val fillWidth = size.width * animatedProgress
+        if (fillWidth > 1f) {
+            drawRoundRect(
+                brush = fillBrush,
+                size = Size(fillWidth, size.height),
+                cornerRadius = corner
             )
         }
     }

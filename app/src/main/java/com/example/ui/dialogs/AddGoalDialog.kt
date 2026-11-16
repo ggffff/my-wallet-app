@@ -84,6 +84,18 @@ import com.example.data.model.Goal
 import com.example.ui.motion.bounceClick
 import com.example.ui.theme.LocalAppTheme
 
+private val GoalIconCategoryOptions = listOf(
+    Triple("laptop", "Laptop", Icons.Default.Laptop),
+    Triple("car", "Car", Icons.Default.DirectionsCar),
+    Triple("home", "Home", Icons.Default.Home),
+    Triple("savings", "Savings", Icons.Default.Savings),
+    Triple("phone", "Phone", Icons.Default.Smartphone),
+    Triple("flight", "Tour", Icons.Default.Flight),
+    Triple("bag", "Shopping", Icons.Default.ShoppingBag)
+)
+
+private val GoalSaveBrush = Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))
+
 /**
  * Premium Blue & White "Add Goal" Floating Card Dialog.
  * Compact floating card modal ("শর্ট স্কিন") for Saving Goals.
@@ -125,16 +137,6 @@ fun AddGoalDialog(
         val activeAccent = if (isDark) cyanAccent else brandBlue
         val badgeBg = if (isDark) Color(0xFF132854) else Color(0xFFEBF4FF)
 
-        val iconCategories = listOf(
-            Triple("laptop", "Laptop", Icons.Default.Laptop),
-            Triple("car", "Car", Icons.Default.DirectionsCar),
-            Triple("home", "Home", Icons.Default.Home),
-            Triple("savings", "Savings", Icons.Default.Savings),
-            Triple("phone", "Phone", Icons.Default.Smartphone),
-            Triple("flight", "Tour", Icons.Default.Flight),
-            Triple("bag", "Shopping", Icons.Default.ShoppingBag)
-        )
-
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -143,7 +145,7 @@ fun AddGoalDialog(
                 .testTag("add_goal_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
-            shadowElevation = if (isDark) 10.dp else 6.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(1.2.dp, cardBorder)
         ) {
             Column(
@@ -183,7 +185,7 @@ fun AddGoalDialog(
                                 ImageRequest.Builder(context)
                                     .data(R.drawable.img_quick_savings_goal)
                                     .size(160)
-                                    .crossfade(true)
+                                    .crossfade(false)
                                     .build()
                             },
                             contentDescription = "Goal Logo",
@@ -195,7 +197,7 @@ fun AddGoalDialog(
                         Surface(
                             shape = CircleShape,
                             color = Color.White,
-                            shadowElevation = 3.dp,
+                            shadowElevation = 0.dp,
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                             modifier = Modifier
                                 .size(20.dp)
@@ -236,14 +238,14 @@ fun AddGoalDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(iconCategories, key = { it.first }) { (key, label, icon) ->
+                    items(GoalIconCategoryOptions, key = { it.first }) { (key, label, icon) ->
                         val isSelected = selectedIcon == key
                         Surface(
                             onClick = { selectedIcon = key },
                             shape = RoundedCornerShape(16.dp),
                             color = if (isSelected) (if (isDark) Color(0xFF0F265C) else Color(0xFFEBF4FF)) else cardBg,
                             border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) activeAccent else cardBorder),
-                            shadowElevation = if (isSelected) 2.dp else 1.dp,
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .height(76.dp)
                                 .width(74.dp)
@@ -449,7 +451,7 @@ fun AddGoalDialog(
                         shape = RoundedCornerShape(24.dp),
                         color = cardBg,
                         border = BorderStroke(1.5.dp, brandBlue),
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -495,7 +497,7 @@ fun AddGoalDialog(
                         enabled = !isSubmitting,
                         shape = RoundedCornerShape(24.dp),
                         color = Color.Transparent,
-                        shadowElevation = 3.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(50.dp)
@@ -505,7 +507,7 @@ fun AddGoalDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))),
+                                .background(GoalSaveBrush),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSubmitting) {
@@ -552,7 +554,7 @@ private fun CompactInputField(
         shape = RoundedCornerShape(20.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.dp, if (isFocused) activeAccent else cardBorder),
-        shadowElevation = if (isFocused) 3.dp else 1.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)

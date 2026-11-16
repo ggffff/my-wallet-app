@@ -97,11 +97,16 @@ fun StatementsScreen(
         }
     }
 
-    val totalIncome = remember(filteredList) {
-        filteredList.filter { it.type == "INCOME" }.sumOf { it.amount }
-    }
-    val totalExpense = remember(filteredList) {
-        filteredList.filter { it.type == "SPENT" }.sumOf { it.amount }
+    val (totalIncome, totalExpense) = remember(filteredList) {
+        var inc = 0.0
+        var exp = 0.0
+        filteredList.forEach { txn ->
+            when (txn.type) {
+                "INCOME" -> inc += txn.amount
+                "SPENT" -> exp += txn.amount
+            }
+        }
+        inc to exp
     }
 
     val categories = remember(transactions) {
@@ -114,9 +119,7 @@ fun StatementsScreen(
                 onClick = onAddTransactionClicked,
                 containerColor = PremiumBlue,
                 contentColor = PureWhite,
-                modifier = Modifier
-                    .testTag("add_statement_fab")
-                    .bounceClick(scaleDown = 0.9f, onClick = onAddTransactionClicked)
+                modifier = Modifier.testTag("add_statement_fab")
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Transaction")
             }
@@ -355,7 +358,6 @@ private fun StatementCardItem(
 ) {
     val isIncome = txn.type == "INCOME"
     val tintColor = if (isIncome) IncomeGreen else ExpenseRed
-    val glowColor = if (isIncome) IncomeGreen.copy(alpha = 0.35f) else ExpenseRed.copy(alpha = 0.35f)
 
     Card(
         modifier = modifier

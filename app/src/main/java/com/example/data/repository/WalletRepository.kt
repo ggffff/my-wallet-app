@@ -23,9 +23,13 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class WalletRepository(private val db: FirebaseFirestore) {
 
@@ -34,6 +38,10 @@ class WalletRepository(private val db: FirebaseFirestore) {
     )
 
     companion object {
+        private val isoDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        }
+
         @Volatile
         private var cachedFirestore: FirebaseFirestore? = null
 
@@ -128,7 +136,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.toObject(UserProfile::class.java)
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun saveUserProfile(profile: UserProfile) {
@@ -197,7 +205,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.documents?.mapNotNull { it.toObject(Account::class.java) } ?: emptyList()
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun addAccount(account: Account): String {
@@ -340,7 +348,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.documents?.mapNotNull { it.toObject(Transaction::class.java) } ?: emptyList()
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun addTransaction(txn: Transaction) {
@@ -590,7 +598,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.documents?.mapNotNull { it.toObject(Goal::class.java) } ?: emptyList()
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun addGoal(goal: Goal) {
@@ -700,7 +708,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.documents?.mapNotNull { it.toObject(Bill::class.java) } ?: emptyList()
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun addBill(bill: Bill) {
@@ -833,7 +841,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.documents?.mapNotNull { it.toObject(Budget::class.java) } ?: emptyList()
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun saveBudget(budget: Budget) {
@@ -901,7 +909,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.documents?.mapNotNull { it.toObject(Debt::class.java) } ?: emptyList()
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun addDebt(debt: Debt, accountId: String? = null) {
@@ -1038,7 +1046,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
             awaitClose { registration.remove() }
         }.map { snapshot ->
             snapshot?.documents?.mapNotNull { it.toObject(HabitRoutine::class.java) } ?: emptyList()
-        }.flowOn(Dispatchers.Default)
+        }.distinctUntilChanged().flowOn(Dispatchers.Default)
     }
 
     suspend fun addHabit(habit: HabitRoutine) {
@@ -1071,7 +1079,8 @@ class WalletRepository(private val db: FirebaseFirestore) {
     }
 
     suspend fun markHabitCompleted(habit: HabitRoutine, completionDate: String? = null, costAccountId: String? = null) {
-        val todayStr = completionDate?.ifBlank { null } ?: java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val formatter = isoDateFormatter.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val todayStr = completionDate?.ifBlank { null } ?: formatter.format(Date())
         val nextDueStr = calculateNextDueDate(todayStr, habit.intervalDays)
         val newCompletedCount = habit.totalTimesCompleted + 1
 
@@ -1165,7 +1174,7 @@ class WalletRepository(private val db: FirebaseFirestore) {
 
     private fun calculateNextDueDate(fromDateStr: String, intervalDays: Int): String {
         return try {
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            val sdf = isoDateFormatter.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US)
             val cal = java.util.Calendar.getInstance()
             if (fromDateStr.isNotBlank()) {
                 val parsed = sdf.parse(fromDateStr)

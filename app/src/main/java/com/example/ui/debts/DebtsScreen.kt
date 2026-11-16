@@ -121,6 +121,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val DebtDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+    override fun initialValue(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+}
+
+private val DebtLentAvatarBrush = Brush.linearGradient(listOf(Color(0xFF059669), Color(0xFF10B981)))
+private val DebtBorrowedAvatarBrush = Brush.linearGradient(listOf(Color(0xFFDC2626), Color(0xFFEF4444)))
+private val DebtLentButtonBrush = Brush.horizontalGradient(listOf(Color(0xFF059669), Color(0xFF10B981)))
+private val DebtBorrowedButtonBrush = Brush.horizontalGradient(listOf(Color(0xFF0066FF), Color(0xFF0284C7)))
+private val DebtSaveLentBrush = Brush.horizontalGradient(listOf(Color(0xFF059669), Color(0xFF10B981)))
+private val DebtSaveBorrowedBrush = Brush.horizontalGradient(listOf(Color(0xFF0072FF), Color(0xFF0052FE)))
+
 @Composable
 fun DebtsScreen(
     debts: List<Debt>,
@@ -206,7 +217,7 @@ fun DebtsScreen(
                             RoundedCornerShape(24.dp)
                         ),
                     shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 4.dp else 2.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isDark) Color(0xFF0B1733) else Color(0xFFFFFFFF)
                     )
@@ -563,12 +574,7 @@ private fun DebtCardItem(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    if (isLent) listOf(Color(0xFF059669), Color(0xFF10B981))
-                                    else listOf(Color(0xFFDC2626), Color(0xFFEF4444))
-                                )
-                            ),
+                            .background(if (isLent) DebtLentAvatarBrush else DebtBorrowedAvatarBrush),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -727,12 +733,7 @@ private fun DebtCardItem(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                if (isLent) listOf(Color(0xFF059669), Color(0xFF10B981))
-                                else listOf(Color(0xFF0066FF), Color(0xFF0284C7))
-                            )
-                        )
+                        .background(if (isLent) DebtLentButtonBrush else DebtBorrowedButtonBrush)
                         .clickable { onRepayClick() }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -782,7 +783,10 @@ private fun AddDebtDialog(
         var showDatePicker by remember { mutableStateOf(false) }
         var isNoteFocused by remember { mutableStateOf(false) }
 
-        val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+        val todayStr = remember {
+            val fmt = DebtDateFormatter.get() ?: SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            fmt.format(Date())
+        }
 
         BackHandler {
             if (!isSubmitting) onDismiss()
@@ -805,7 +809,7 @@ private fun AddDebtDialog(
                 .testTag("add_debt_dialog"),
             shape = RoundedCornerShape(28.dp),
             color = cardBg,
-            shadowElevation = if (isDark) 8.dp else 6.dp,
+            shadowElevation = 0.dp,
             border = BorderStroke(1.2.dp, cardBorder)
         ) {
             Column(
@@ -858,7 +862,7 @@ private fun AddDebtDialog(
                         Surface(
                             shape = CircleShape,
                             color = Color.White,
-                            shadowElevation = 4.dp,
+                            shadowElevation = 0.dp,
                             border = BorderStroke(1.5.dp, Color(0xFFE2E8F0)),
                             modifier = Modifier
                                 .size(24.dp)
@@ -904,7 +908,7 @@ private fun AddDebtDialog(
                         shape = RoundedCornerShape(22.dp),
                         color = if (isLent) (if (isDark) Color(0xFF0F3624) else Color(0xFFE8FDF2)) else cardBg,
                         border = BorderStroke(if (isLent) 2.dp else 1.dp, if (isLent) IncomeGreen else cardBorder),
-                        shadowElevation = if (isLent) 4.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(76.dp)
@@ -951,7 +955,7 @@ private fun AddDebtDialog(
                         shape = RoundedCornerShape(22.dp),
                         color = if (isBorrowed) (if (isDark) Color(0xFF38141C) else Color(0xFFFDE8EC)) else cardBg,
                         border = BorderStroke(if (isBorrowed) 2.dp else 1.dp, if (isBorrowed) ExpenseRed else cardBorder),
-                        shadowElevation = if (isBorrowed) 4.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(76.dp)
@@ -1171,7 +1175,7 @@ private fun AddDebtDialog(
                             shape = RoundedCornerShape(22.dp),
                             color = cardBg,
                             border = BorderStroke(1.2.dp, cardBorder),
-                            shadowElevation = 2.dp,
+                            shadowElevation = 0.dp,
                             modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
@@ -1257,7 +1261,7 @@ private fun AddDebtDialog(
                         shape = RoundedCornerShape(28.dp),
                         color = cardBg,
                         border = BorderStroke(2.dp, brandBlue),
-                        shadowElevation = if (isDark) 0.dp else 2.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp)
@@ -1311,7 +1315,7 @@ private fun AddDebtDialog(
                         enabled = !isSubmitting,
                         shape = RoundedCornerShape(28.dp),
                         color = Color.Transparent,
-                        shadowElevation = 4.dp,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp)
@@ -1320,7 +1324,7 @@ private fun AddDebtDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Brush.horizontalGradient(if (debtType == DebtType.LENT) listOf(Color(0xFF059669), Color(0xFF10B981)) else listOf(Color(0xFF0072FF), Color(0xFF0052FE)))),
+                                .background(if (debtType == DebtType.LENT) DebtSaveLentBrush else DebtSaveBorrowedBrush),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSubmitting) {
@@ -1371,7 +1375,7 @@ private fun DebtInputField(
         shape = RoundedCornerShape(24.dp),
         color = cardBg,
         border = BorderStroke(if (isFocused) 2.dp else 1.2.dp, if (isFocused) activeAccent else cardBorder),
-        shadowElevation = if (isFocused) 4.dp else 2.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .height(68.dp)

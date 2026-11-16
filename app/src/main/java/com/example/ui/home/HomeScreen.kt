@@ -105,6 +105,22 @@ import com.example.ui.ads.AdMobBannerController
 import com.example.ui.ads.AdMobNativeAdCard
 import com.google.android.gms.ads.nativead.NativeAd
 
+private val VisaCardBlueBrush = Brush.linearGradient(
+    colors = listOf(
+        Color(0xFF0284C7),
+        Color(0xFF0369A1),
+        Color(0xFF1E40AF)
+    )
+)
+
+private val GoldCoinRadialBrush = Brush.radialGradient(
+    colors = listOf(
+        Color(0xFFFDE047),
+        Color(0xFFF59E0B),
+        Color(0xFFD97706)
+    )
+)
+
 @Composable
 fun HomeScreen(
     userProfile: UserProfile?,
@@ -140,12 +156,16 @@ fun HomeScreen(
         accounts.sumOf { it.balance }
     }
 
-    val totalIncome = remember(transactions) {
-        transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    }
-
-    val totalExpense = remember(transactions) {
-        transactions.filter { it.type == "SPENT" }.sumOf { it.amount }
+    val (totalIncome, totalExpense) = remember(transactions) {
+        var inc = 0.0
+        var exp = 0.0
+        transactions.forEach { txn ->
+            when (txn.type) {
+                "INCOME" -> inc += txn.amount
+                "SPENT" -> exp += txn.amount
+            }
+        }
+        inc to exp
     }
 
     val upcomingBills = remember(bills) {
@@ -199,7 +219,7 @@ fun HomeScreen(
 
     val eyeRotation by animateFloatAsState(
         targetValue = if (isBalanceHidden) 180f else 0f,
-        animationSpec = spring(),
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "eyeRotation"
     )
 
@@ -229,7 +249,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp),
                 shape = RoundedCornerShape(26.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 4.dp else 2.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
                 Box(
@@ -312,7 +332,7 @@ fun HomeScreen(
                                     onClick = { isBalanceHidden = !isBalanceHidden },
                                     modifier = Modifier
                                         .size(28.dp)
-                                        .rotate(eyeRotation)
+                                        .graphicsLayer { rotationZ = eyeRotation }
                                 ) {
                                     Icon(
                                         imageVector = if (isBalanceHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
@@ -953,6 +973,7 @@ fun HomeScreen(
                         txn = txn,
                         isHidden = isBalanceHidden,
                         language = language,
+                        currency = currentCurrency,
                         modifier = Modifier.staggeredEntrance(index = 6 + index)
                     )
                 }
@@ -1026,19 +1047,11 @@ fun VisaCardCoinsIllustration(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = (-4).dp, y = 2.dp)
-                .rotate(-10f)
+                .graphicsLayer { rotationZ = -10f }
                 .width(78.dp)
                 .height(48.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF0284C7),
-                            Color(0xFF0369A1),
-                            Color(0xFF1E40AF)
-                        )
-                    )
-                )
+                .background(VisaCardBlueBrush)
                 .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
                 .padding(horizontal = 6.dp, vertical = 5.dp)
         ) {
@@ -1102,15 +1115,7 @@ fun VisaCardCoinsIllustration(
                 modifier = Modifier
                     .size(30.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFFDE047),
-                                Color(0xFFF59E0B),
-                                Color(0xFFD97706)
-                            )
-                        )
-                    )
+                    .background(GoldCoinRadialBrush)
                     .border(1.dp, Color(0xFFFEF08A), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -1408,6 +1413,7 @@ fun HomeTransactionRow(
     txn: Transaction,
     isHidden: Boolean,
     language: com.example.util.AppLanguage,
+    currency: AppCurrency = LocalAppCurrency.current,
     modifier: Modifier = Modifier
 ) {
     val isIncome = txn.type == "INCOME"
@@ -1453,10 +1459,9 @@ fun HomeTransactionRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            val appCurrency = LocalAppCurrency.current
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = if (isHidden) "${appCurrency.symbol} •••" else "${if (isIncome) "+" else "-"} ${appCurrency.format(txn.amount)}",
+                    text = if (isHidden) "${currency.symbol} •••" else "${if (isIncome) "+" else "-"} ${currency.format(txn.amount)}",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = tintColor
                 )
